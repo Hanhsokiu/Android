@@ -37,6 +37,7 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:scaleType="centerCrop"
+            android:contentDescription="Album Art"
             android:src="@drawable/ic_music_note" />
     </androidx.cardview.widget.CardView>
 
@@ -71,8 +72,9 @@
         android:layout_width="40dp"
         android:layout_height="40dp"
         android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="More"
         android:src="@android:drawable/ic_menu_more"
-        android:tint="#FFFFFF"
+        app:tint="#FFFFFF"
         app:layout_constraintBottom_toBottomOf="@+id/txt_artist_name"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="@+id/txt_song_name" />
@@ -129,8 +131,9 @@
             android:layout_height="56dp"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:scaleType="fitCenter"
+            android:contentDescription="Previous"
             android:src="@drawable/ic_prev"
-            android:tint="#FFFFFF" />
+            app:tint="#FFFFFF" />
 
         <ImageButton
             android:id="@+id/btn_play_pause"
@@ -139,8 +142,9 @@
             android:layout_marginHorizontal="40dp"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:scaleType="fitCenter"
+            android:contentDescription="Play/Pause"
             android:src="@drawable/ic_pause"
-            android:tint="#FFFFFF" />
+            app:tint="#FFFFFF" />
 
         <ImageButton
             android:id="@+id/btn_next"
@@ -148,8 +152,9 @@
             android:layout_height="56dp"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:scaleType="fitCenter"
+            android:contentDescription="Next"
             android:src="@drawable/ic_next"
-            android:tint="#FFFFFF" />
+            app:tint="#FFFFFF" />
     </LinearLayout>
 
     <!-- Bottom Icons (Lyrics, Airplay, List) -->
@@ -167,22 +172,25 @@
             android:layout_width="24dp"
             android:layout_height="24dp"
             android:layout_weight="1"
+            android:contentDescription="Lyrics"
             android:src="@android:drawable/ic_btn_speak_now"
-            android:tint="#80FFFFFF" />
+            app:tint="#80FFFFFF" />
 
         <ImageView
             android:layout_width="24dp"
             android:layout_height="24dp"
             android:layout_weight="1"
+            android:contentDescription="Share"
             android:src="@android:drawable/ic_menu_share"
-            android:tint="#80FFFFFF" />
+            app:tint="#80FFFFFF" />
 
         <ImageView
             android:layout_width="24dp"
             android:layout_height="24dp"
             android:layout_weight="1"
+            android:contentDescription="Playlist"
             android:src="@android:drawable/ic_menu_sort_by_size"
-            android:tint="#80FFFFFF" />
+            app:tint="#80FFFFFF" />
     </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

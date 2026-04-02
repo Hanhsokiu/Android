@@ -26,6 +26,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:scaleType="centerCrop"
+                android:contentDescription="Song Image"
                 android:src="@drawable/ic_music_note" />
         </androidx.cardview.widget.CardView>
 
@@ -62,8 +63,9 @@
             android:layout_height="32dp"
             android:background="@android:color/transparent"
             android:scaleType="fitCenter"
+            android:contentDescription="Play"
             android:src="@drawable/ic_play"
-            android:tint="#FF7E5F" />
+            app:tint="#FF7E5F" />
 
         <ImageButton
             android:id="@+id/btn_more_options"
@@ -71,8 +73,9 @@
             android:layout_height="32dp"
             android:layout_marginStart="8dp"
             android:background="@android:color/transparent"
+            android:contentDescription="More Options"
             android:src="@android:drawable/ic_menu_more"
-            android:tint="#888888" />
+            app:tint="#888888" />
 
     </LinearLayout>
 </androidx.cardview.widget.CardView>
