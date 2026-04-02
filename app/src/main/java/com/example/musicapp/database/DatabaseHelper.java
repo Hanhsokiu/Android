@@ -149,8 +149,8 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         List<Song> list = new ArrayList<>();
         SQLiteDatabase db = this.getReadableDatabase();
         String q = "SELECT s.* FROM " + TABLE_SONGS + " s " +
-                   "JOIN " + TABLE_ALBUM_SONGS + " as ON s.id = as.as_song_id " +
-                   "WHERE as.as_album_id = ?";
+                   "JOIN " + TABLE_ALBUM_SONGS + " albsong ON s.id = albsong.as_song_id " +
+                   "WHERE albsong.as_album_id = ?";
         Cursor c = db.rawQuery(q, new String[]{String.valueOf(albId)});
         if (c.moveToFirst()) {
             do {
