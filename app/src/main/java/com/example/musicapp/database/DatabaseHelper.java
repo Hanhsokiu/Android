@@ -12,27 +12,8 @@ import java.util.List;
 
 public class DatabaseHelper extends SQLiteOpenHelper {
 
-    private static final String DATABASE_NAME = "MusicAppDB.db";
-    private static final int DATABASE_VERSION = 6;
-
-    // Bảng Songs
-    private static final String TABLE_SONGS = "songs";
-    private static final String COL_ID = "id";
-    private static final String COL_TITLE = "title";
-    private static final String COL_ARTIST = "artist";
-    private static final String COL_PATH = "path";
-    private static final String COL_DURATION = "duration";
-    private static final String COL_IMAGE = "image_path";
-
-    // Bảng Albums
-    private static final String TABLE_ALBUMS = "albums";
-    private static final String COL_ALB_ID = "album_id";
-    private static final String COL_ALB_NAME = "album_name";
-
-    // Bảng Liên kết Album - Bài hát
-    private static final String TABLE_ALBUM_SONGS = "album_songs";
-    private static final String COL_AS_ALB_ID = "as_album_id";
-    private static final String COL_AS_SONG_ID = "as_song_id";
+    private static final String DATABASE_NAME = "MusicManagerFinal.db";
+    private static final int DATABASE_VERSION = 1;
 
     public DatabaseHelper(Context context) {
         super(context, DATABASE_NAME, null, DATABASE_VERSION);
@@ -40,42 +21,28 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
     @Override
     public void onCreate(SQLiteDatabase db) {
-        db.execSQL("CREATE TABLE " + TABLE_SONGS + " (" +
-                COL_ID + " INTEGER PRIMARY KEY AUTOINCREMENT, " +
-                COL_TITLE + " TEXT, " +
-                COL_ARTIST + " TEXT, " +
-                COL_PATH + " TEXT, " +
-                COL_DURATION + " INTEGER, " +
-                COL_IMAGE + " TEXT)");
-
-        db.execSQL("CREATE TABLE " + TABLE_ALBUMS + " (" +
-                COL_ALB_ID + " INTEGER PRIMARY KEY AUTOINCREMENT, " +
-                COL_ALB_NAME + " TEXT)");
-
-        db.execSQL("CREATE TABLE " + TABLE_ALBUM_SONGS + " (" +
-                COL_AS_ALB_ID + " INTEGER, " +
-                COL_AS_SONG_ID + " INTEGER, " +
-                "PRIMARY KEY (" + COL_AS_ALB_ID + ", " + COL_AS_SONG_ID + "))");
+        db.execSQL("CREATE TABLE songs (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, artist TEXT, path TEXT, duration INTEGER, image_path TEXT)");
+        db.execSQL("CREATE TABLE albums (album_id INTEGER PRIMARY KEY AUTOINCREMENT, album_name TEXT)");
+        db.execSQL("CREATE TABLE album_songs (as_album_id INTEGER, as_song_id INTEGER, PRIMARY KEY (as_album_id, as_song_id))");
     }
 
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
-        db.execSQL("DROP TABLE IF EXISTS " + TABLE_ALBUM_SONGS);
-        db.execSQL("DROP TABLE IF EXISTS " + TABLE_ALBUMS);
-        db.execSQL("DROP TABLE IF EXISTS " + TABLE_SONGS);
+        db.execSQL("DROP TABLE IF EXISTS album_songs");
+        db.execSQL("DROP TABLE IF EXISTS albums");
+        db.execSQL("DROP TABLE IF EXISTS songs");
         onCreate(db);
     }
 
-    // --- Bài hát ---
     public long addSong(Song song) {
         SQLiteDatabase db = this.getWritableDatabase();
         ContentValues v = new ContentValues();
-        v.put(COL_TITLE, song.getTitle());
-        v.put(COL_ARTIST, song.getArtist());
-        v.put(COL_PATH, song.getPath());
-        v.put(COL_DURATION, song.getDuration());
-        v.put(COL_IMAGE, song.getImagePath());
-        long id = db.insert(TABLE_SONGS, null, v);
+        v.put("title", song.getTitle());
+        v.put("artist", song.getArtist());
+        v.put("path", song.getPath());
+        v.put("duration", song.getDuration());
+        v.put("image_path", song.getImagePath());
+        long id = db.insert("songs", null, v);
         db.close();
         return id;
     }
@@ -83,13 +50,13 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     public List<Song> getAllSongs() {
         List<Song> list = new ArrayList<>();
         SQLiteDatabase db = this.getReadableDatabase();
-        Cursor c = db.rawQuery("SELECT * FROM " + TABLE_SONGS + " ORDER BY id DESC", null);
-        if (c.moveToFirst()) {
+        Cursor c = db.rawQuery("SELECT * FROM songs ORDER BY id DESC", null);
+        if (c != null && c.moveToFirst()) {
             do {
                 list.add(new Song(c.getLong(0), c.getString(1), c.getString(2), c.getString(3), c.getLong(4), c.getString(5)));
             } while (c.moveToNext());
+            c.close();
         }
-        c.close();
         db.close();
         return list;
     }
@@ -97,27 +64,26 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     public void updateSong(Song song) {
         SQLiteDatabase db = this.getWritableDatabase();
         ContentValues v = new ContentValues();
-        v.put(COL_TITLE, song.getTitle());
-        v.put(COL_ARTIST, song.getArtist());
-        v.put(COL_PATH, song.getPath());
-        v.put(COL_IMAGE, song.getImagePath());
-        db.update(TABLE_SONGS, v, COL_ID + " = ?", new String[]{String.valueOf(song.getId())});
+        v.put("title", song.getTitle());
+        v.put("artist", song.getArtist());
+        v.put("path", song.getPath());
+        v.put("image_path", song.getImagePath());
+        db.update("songs", v, "id = ?", new String[]{String.valueOf(song.getId())});
         db.close();
     }
 
     public void deleteSong(long id) {
         SQLiteDatabase db = this.getWritableDatabase();
-        db.delete(TABLE_SONGS, COL_ID + " = ?", new String[]{String.valueOf(id)});
-        db.delete(TABLE_ALBUM_SONGS, COL_AS_SONG_ID + " = ?", new String[]{String.valueOf(id)});
+        db.delete("songs", "id = ?", new String[]{String.valueOf(id)});
+        db.delete("album_songs", "as_song_id = ?", new String[]{String.valueOf(id)});
         db.close();
     }
 
-    // --- Album ---
     public long addAlbum(String name) {
         SQLiteDatabase db = this.getWritableDatabase();
         ContentValues v = new ContentValues();
-        v.put(COL_ALB_NAME, name);
-        long id = db.insert(TABLE_ALBUMS, null, v);
+        v.put("album_name", name);
+        long id = db.insert("albums", null, v);
         db.close();
         return id;
     }
@@ -125,13 +91,13 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     public List<Album> getAllAlbums() {
         List<Album> list = new ArrayList<>();
         SQLiteDatabase db = this.getReadableDatabase();
-        Cursor c = db.rawQuery("SELECT * FROM " + TABLE_ALBUMS, null);
-        if (c.moveToFirst()) {
+        Cursor c = db.rawQuery("SELECT * FROM albums", null);
+        if (c != null && c.moveToFirst()) {
             do {
                 list.add(new Album(c.getLong(0), c.getString(1)));
             } while (c.moveToNext());
+            c.close();
         }
-        c.close();
         db.close();
         return list;
     }
@@ -139,25 +105,23 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     public void addSongToAlbum(long albId, long songId) {
         SQLiteDatabase db = this.getWritableDatabase();
         ContentValues v = new ContentValues();
-        v.put(COL_AS_ALB_ID, albId);
-        v.put(COL_AS_SONG_ID, songId);
-        db.insertWithOnConflict(TABLE_ALBUM_SONGS, null, v, SQLiteDatabase.CONFLICT_IGNORE);
+        v.put("as_album_id", albId);
+        v.put("as_song_id", songId);
+        db.insertWithOnConflict("album_songs", null, v, SQLiteDatabase.CONFLICT_IGNORE);
         db.close();
     }
 
     public List<Song> getSongsInAlbum(long albId) {
         List<Song> list = new ArrayList<>();
         SQLiteDatabase db = this.getReadableDatabase();
-        String q = "SELECT s.* FROM " + TABLE_SONGS + " s " +
-                   "JOIN " + TABLE_ALBUM_SONGS + " albsong ON s.id = albsong.as_song_id " +
-                   "WHERE albsong.as_album_id = ?";
+        String q = "SELECT s.* FROM songs s JOIN album_songs a ON s.id = a.as_song_id WHERE a.as_album_id = ?";
         Cursor c = db.rawQuery(q, new String[]{String.valueOf(albId)});
-        if (c.moveToFirst()) {
+        if (c != null && c.moveToFirst()) {
             do {
                 list.add(new Song(c.getLong(0), c.getString(1), c.getString(2), c.getString(3), c.getLong(4), c.getString(5)));
             } while (c.moveToNext());
+            c.close();
         }
-        c.close();
         db.close();
         return list;
     }

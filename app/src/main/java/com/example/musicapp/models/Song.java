@@ -3,6 +3,7 @@ package com.example.musicapp.models;
 import java.io.Serializable;
 
 public class Song implements Serializable {
+    private static final long serialVersionUID = 1L;
     private long id;
     private String title;
     private String artist;
@@ -25,6 +26,5 @@ public class Song implements Serializable {
     public String getPath() { return path; }
     public long getDuration() { return duration; }
     public String getImagePath() { return imagePath; }
-
     public void setDuration(long duration) { this.duration = duration; }
 }
