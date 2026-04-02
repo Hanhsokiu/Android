@@ -25,8 +25,9 @@
                 android:layout_height="40dp"
                 android:layout_centerVertical="true"
                 android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Menu"
                 android:src="@android:drawable/ic_menu_sort_by_size"
-                android:tint="#333333" />
+                app:tint="#333333" />
 
             <TextView
                 android:layout_width="wrap_content"
@@ -44,8 +45,9 @@
                 android:layout_alignParentEnd="true"
                 android:layout_centerVertical="true"
                 android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Search"
                 android:src="@android:drawable/ic_menu_search"
-                android:tint="#333333" />
+                app:tint="#333333" />
         </RelativeLayout>
 
         <!-- Search Bar (Initially Hidden) -->
@@ -56,6 +58,8 @@
             android:layout_marginHorizontal="16dp"
             android:background="@drawable/bg_search"
             android:hint="Tìm kiếm bài hát, tác giả..."
+            android:inputType="text"
+            android:autofillHints="name"
             android:paddingHorizontal="16dp"
             android:visibility="gone"
             app:layout_constraintTop_toBottomOf="@id/rl_header" />
@@ -99,6 +103,7 @@
             android:layout_height="wrap_content"
             android:layout_margin="16dp"
             android:backgroundTint="#FF7E5F"
+            android:contentDescription="Add Song"
             android:src="@android:drawable/ic_input_add"
             app:layout_constraintBottom_toTopOf="@id/bottom_navigation"
             app:layout_constraintEnd_toEndOf="parent"
@@ -120,8 +125,9 @@
                 android:layout_height="match_parent"
                 android:layout_weight="1"
                 android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Home"
                 android:src="@android:drawable/ic_menu_myplaces"
-                android:tint="#FF7E5F" />
+                app:tint="#FF7E5F" />
 
             <ImageButton
                 android:id="@+id/nav_album"
@@ -129,8 +135,9 @@
                 android:layout_height="match_parent"
                 android:layout_weight="1"
                 android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Albums"
                 android:src="@android:drawable/ic_menu_gallery"
-                android:tint="#888888" />
+                app:tint="#888888" />
 
             <ImageButton
                 android:id="@+id/nav_fav"
@@ -138,8 +145,9 @@
                 android:layout_height="match_parent"
                 android:layout_weight="1"
                 android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Favorites"
                 android:src="@android:drawable/btn_star_big_off"
-                android:tint="#888888" />
+                app:tint="#888888" />
         </LinearLayout>
 
     </androidx.constraintlayout.widget.ConstraintLayout>
