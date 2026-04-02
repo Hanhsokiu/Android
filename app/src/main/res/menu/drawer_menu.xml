@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/nav_home"
+        android:icon="@android:drawable/ic_menu_myplaces"
+        android:title="Trang chủ" />
+    <item
+        android:id="@+id/nav_create_album"
+        android:icon="@android:drawable/ic_menu_add"
+        android:title="Tạo Album mới" />
+    <item
+        android:id="@+id/nav_albums"
+        android:icon="@android:drawable/ic_menu_gallery"
+        android:title="Danh sách Album" />
+    <item
+        android:id="@+id/nav_settings"
+        android:icon="@android:drawable/ic_menu_preferences"
+        android:title="Cài đặt" />
+</menu>
