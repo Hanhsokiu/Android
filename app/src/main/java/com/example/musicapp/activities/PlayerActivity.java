@@ -13,22 +13,27 @@ import android.widget.ImageView;
 import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import com.example.musicapp.R;
+import com.example.musicapp.database.DatabaseHelper;
+import com.example.musicapp.models.Album;
 import com.example.musicapp.models.Song;
 import com.example.musicapp.services.MusicService;
 import com.example.musicapp.utils.MusicUtils;
+import java.util.List;
 
 public class PlayerActivity extends AppCompatActivity {
 
     private ImageView imgAlbum;
     private TextView txtSongName, txtArtistName, txtCurrentTime, txtTotalTime;
     private SeekBar seekBar;
-    private ImageButton btnPlayPause, btnPrev, btnNext;
+    private ImageButton btnPlayPause, btnPrev, btnNext, btnBackHome, btnFavorite, btnAddAlbum, btnRepeat, btnRestart;
 
     private MusicService musicService;
     private boolean isBound = false;
     private Handler handler = new Handler();
+    private boolean isRepeatMode = false;
 
     private ServiceConnection serviceConnection = new ServiceConnection() {
         @Override
@@ -39,7 +44,6 @@ public class PlayerActivity extends AppCompatActivity {
             updateUI();
             updateSeekBar();
         }
-
         @Override
         public void onServiceDisconnected(ComponentName name) {
             isBound = false;
@@ -52,9 +56,31 @@ public class PlayerActivity extends AppCompatActivity {
         setContentView(R.layout.activity_player);
 
         initViews();
+        setupListeners();
 
         Intent intent = new Intent(this, MusicService.class);
         bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE);
+    }
+
+    private void initViews() {
+        imgAlbum = findViewById(R.id.img_album);
+        txtSongName = findViewById(R.id.txt_song_name);
+        txtArtistName = findViewById(R.id.txt_artist_name);
+        txtCurrentTime = findViewById(R.id.txt_current_time);
+        txtTotalTime = findViewById(R.id.txt_total_time);
+        seekBar = findViewById(R.id.seekBar);
+        btnPlayPause = findViewById(R.id.btn_play_pause);
+        btnPrev = findViewById(R.id.btn_prev);
+        btnNext = findViewById(R.id.btn_next);
+        btnBackHome = findViewById(R.id.btn_back_home);
+        btnFavorite = findViewById(R.id.btn_favorite_player);
+        btnAddAlbum = findViewById(R.id.btn_add_to_album_player);
+        btnRepeat = findViewById(R.id.btn_repeat);
+        btnRestart = findViewById(R.id.btn_restart);
+    }
+
+    private void setupListeners() {
+        btnBackHome.setOnClickListener(v -> finish());
 
         btnPlayPause.setOnClickListener(v -> {
             if (isBound) {
@@ -77,12 +103,42 @@ public class PlayerActivity extends AppCompatActivity {
             }
         });
 
+        btnRepeat.setOnClickListener(v -> {
+            isRepeatMode = !isRepeatMode;
+            btnRepeat.setColorFilter(isRepeatMode ? getResources().getColor(android.R.color.holo_blue_light) : getResources().getColor(android.R.color.darker_gray));
+            Toast.makeText(this, isRepeatMode ? "Bật phát lại" : "Tắt phát lại", Toast.LENGTH_SHORT).show();
+        });
+
+        btnRestart.setOnClickListener(v -> {
+            if (isBound) {
+                musicService.seekTo(0);
+            }
+        });
+
+        btnFavorite.setOnClickListener(v -> {
+            if (isBound) {
+                Song song = musicService.getCurrentSong();
+                if (song != null) {
+                    boolean newState = !song.isFavorite();
+                    song.setFavorite(newState);
+                    new DatabaseHelper(this).setFavorite(song.getId(), newState);
+                    updateFavoriteIcon(newState);
+                    Toast.makeText(this, newState ? "Đã thích ❤️" : "Bỏ thích", Toast.LENGTH_SHORT).show();
+                }
+            }
+        });
+
+        btnAddAlbum.setOnClickListener(v -> {
+            if (isBound) {
+                Song song = musicService.getCurrentSong();
+                if (song != null) showAlbumSelectionDialog(song.getId());
+            }
+        });
+
         seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                if (fromUser && isBound) {
-                    musicService.seekTo(progress);
-                }
+                if (fromUser && isBound) musicService.seekTo(progress);
             }
             @Override
             public void onStartTrackingTouch(SeekBar seekBar) {}
@@ -91,78 +147,64 @@ public class PlayerActivity extends AppCompatActivity {
         });
     }
 
-    private void initViews() {
-        imgAlbum = findViewById(R.id.img_album);
-        txtSongName = findViewById(R.id.txt_song_name);
-        txtArtistName = findViewById(R.id.txt_artist_name);
-        txtCurrentTime = findViewById(R.id.txt_current_time);
-        txtTotalTime = findViewById(R.id.txt_total_time);
-        seekBar = findViewById(R.id.seekBar);
-        btnPlayPause = findViewById(R.id.btn_play_pause);
-        btnPrev = findViewById(R.id.btn_prev);
-        btnNext = findViewById(R.id.btn_next);
+    private void showAlbumSelectionDialog(long songId) {
+        DatabaseHelper dbHelper = new DatabaseHelper(this);
+        List<Album> albums = dbHelper.getAllAlbums();
+        if (albums.isEmpty()) {
+            Toast.makeText(this, "Chưa có album nào!", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        String[] names = new String[albums.size()];
+        for (int i = 0; i < albums.size(); i++) names[i] = albums.get(i).getName();
+        new AlertDialog.Builder(this).setTitle("Thêm vào Album")
+            .setItems(names, (d, which) -> {
+                dbHelper.addSongToAlbum(albums.get(which).getId(), songId);
+                Toast.makeText(this, "Đã thêm!", Toast.LENGTH_SHORT).show();
+            }).show();
     }
 
     private void updateUI() {
-        if (!isBound || musicService == null) return;
-        Song currentSong = musicService.getCurrentSong();
-        if (currentSong != null) {
-            txtSongName.setText(currentSong.getTitle());
-            txtArtistName.setText(currentSong.getArtist());
-            
-            // Xử lý ảnh an toàn tránh crash
+        if (!isBound) return;
+        Song song = musicService.getCurrentSong();
+        if (song != null) {
+            txtSongName.setText(song.getTitle());
+            txtArtistName.setText(song.getArtist());
+            updateFavoriteIcon(song.isFavorite());
             try {
-                if (currentSong.getImagePath() != null && !currentSong.getImagePath().isEmpty()) {
-                    imgAlbum.setImageURI(Uri.parse(currentSong.getImagePath()));
-                    if (imgAlbum.getDrawable() == null) {
-                        imgAlbum.setImageResource(R.drawable.ic_music_note);
-                    }
+                if (song.getImagePath() != null && !song.getImagePath().isEmpty()) {
+                    imgAlbum.setImageURI(Uri.parse(song.getImagePath()));
                 } else {
                     imgAlbum.setImageResource(R.drawable.ic_music_note);
                 }
-            } catch (Exception e) {
-                imgAlbum.setImageResource(R.drawable.ic_music_note);
-            }
-            
-            int duration = musicService.getDuration();
-            if (duration > 0) {
-                txtTotalTime.setText(MusicUtils.formatDuration(duration));
-                seekBar.setMax(duration);
-            }
+            } catch (Exception e) { imgAlbum.setImageResource(R.drawable.ic_music_note); }
+            int dur = musicService.getDuration();
+            txtTotalTime.setText(MusicUtils.formatDuration(dur));
+            seekBar.setMax(dur);
             updatePlayPauseIcon();
         }
     }
 
+    private void updateFavoriteIcon(boolean isFav) {
+        btnFavorite.setImageResource(isFav ? R.drawable.ic_favorite : R.drawable.ic_favorite_border);
+        btnFavorite.setColorFilter(isFav ? getResources().getColor(android.R.color.holo_red_light) : getResources().getColor(android.R.color.white));
+    }
+
     private void updatePlayPauseIcon() {
-        if (musicService != null && musicService.isPlaying()) {
-            btnPlayPause.setImageResource(R.drawable.ic_pause);
-        } else {
-            btnPlayPause.setImageResource(R.drawable.ic_play);
-        }
+        btnPlayPause.setImageResource(musicService.isPlaying() ? R.drawable.ic_pause : R.drawable.ic_play);
     }
 
     private void updateSeekBar() {
         handler.postDelayed(new Runnable() {
             @Override
             public void run() {
-                if (isBound && musicService != null) {
-                    try {
-                        int currentPos = musicService.getCurrentPosition();
-                        int duration = musicService.getDuration();
-                        
-                        seekBar.setProgress(currentPos);
-                        txtCurrentTime.setText(MusicUtils.formatDuration(currentPos));
-                        
-                        if (duration > 0 && seekBar.getMax() != duration) {
-                            seekBar.setMax(duration);
-                            txtTotalTime.setText(MusicUtils.formatDuration(duration));
-                        }
-                        
-                        Song currentSong = musicService.getCurrentSong();
-                        if (currentSong != null && !txtSongName.getText().toString().equals(currentSong.getTitle())) {
-                            updateUI();
-                        }
-                    } catch (Exception e) { e.printStackTrace(); }
+                if (isBound) {
+                    int pos = musicService.getCurrentPosition();
+                    seekBar.setProgress(pos);
+                    txtCurrentTime.setText(MusicUtils.formatDuration(pos));
+                    // Logic repeat
+                    if (isRepeatMode && pos >= musicService.getDuration() - 500 && pos > 0) {
+                        musicService.seekTo(0);
+                    }
                 }
                 handler.postDelayed(this, 1000);
             }
@@ -172,10 +214,7 @@ public class PlayerActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        if (isBound) {
-            unbindService(serviceConnection);
-            isBound = false;
-        }
+        if (isBound) unbindService(serviceConnection);
         handler.removeCallbacksAndMessages(null);
     }
 }

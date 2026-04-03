@@ -10,6 +10,7 @@ public class Song implements Serializable {
     private String path;
     private long duration;
     private String imagePath;
+    private boolean isFavorite;
 
     public Song(long id, String title, String artist, String path, long duration, String imagePath) {
         this.id = id;
@@ -18,6 +19,17 @@ public class Song implements Serializable {
         this.path = path;
         this.duration = duration;
         this.imagePath = imagePath;
+        this.isFavorite = false;
+    }
+
+    public Song(long id, String title, String artist, String path, long duration, String imagePath, boolean isFavorite) {
+        this.id = id;
+        this.title = title;
+        this.artist = artist;
+        this.path = path;
+        this.duration = duration;
+        this.imagePath = imagePath;
+        this.isFavorite = isFavorite;
     }
 
     public long getId() { return id; }
@@ -26,5 +38,7 @@ public class Song implements Serializable {
     public String getPath() { return path; }
     public long getDuration() { return duration; }
     public String getImagePath() { return imagePath; }
+    public boolean isFavorite() { return isFavorite; }
+    public void setFavorite(boolean favorite) { isFavorite = favorite; }
     public void setDuration(long duration) { this.duration = duration; }
 }

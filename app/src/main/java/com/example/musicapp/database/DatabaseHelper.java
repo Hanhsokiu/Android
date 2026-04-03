@@ -13,7 +13,7 @@ import java.util.List;
 public class DatabaseHelper extends SQLiteOpenHelper {
 
     private static final String DATABASE_NAME = "MusicManagerFinal.db";
-    private static final int DATABASE_VERSION = 1;
+    private static final int DATABASE_VERSION = 2; // Increment version
 
     public DatabaseHelper(Context context) {
         super(context, DATABASE_NAME, null, DATABASE_VERSION);
@@ -21,17 +21,16 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
     @Override
     public void onCreate(SQLiteDatabase db) {
-        db.execSQL("CREATE TABLE songs (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, artist TEXT, path TEXT, duration INTEGER, image_path TEXT)");
+        db.execSQL("CREATE TABLE songs (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, artist TEXT, path TEXT, duration INTEGER, image_path TEXT, is_favorite INTEGER DEFAULT 0)");
         db.execSQL("CREATE TABLE albums (album_id INTEGER PRIMARY KEY AUTOINCREMENT, album_name TEXT)");
         db.execSQL("CREATE TABLE album_songs (as_album_id INTEGER, as_song_id INTEGER, PRIMARY KEY (as_album_id, as_song_id))");
     }
 
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
-        db.execSQL("DROP TABLE IF EXISTS album_songs");
-        db.execSQL("DROP TABLE IF EXISTS albums");
-        db.execSQL("DROP TABLE IF EXISTS songs");
-        onCreate(db);
+        if (oldVersion < 2) {
+            db.execSQL("ALTER TABLE songs ADD COLUMN is_favorite INTEGER DEFAULT 0");
+        }
     }
 
     public long addSong(Song song) {
@@ -42,6 +41,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         v.put("path", song.getPath());
         v.put("duration", song.getDuration());
         v.put("image_path", song.getImagePath());
+        v.put("is_favorite", song.isFavorite() ? 1 : 0);
         long id = db.insert("songs", null, v);
         db.close();
         return id;
@@ -53,7 +53,21 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         Cursor c = db.rawQuery("SELECT * FROM songs ORDER BY id DESC", null);
         if (c != null && c.moveToFirst()) {
             do {
-                list.add(new Song(c.getLong(0), c.getString(1), c.getString(2), c.getString(3), c.getLong(4), c.getString(5)));
+                list.add(new Song(c.getLong(0), c.getString(1), c.getString(2), c.getString(3), c.getLong(4), c.getString(5), c.getInt(6) == 1));
+            } while (c.moveToNext());
+            c.close();
+        }
+        db.close();
+        return list;
+    }
+
+    public List<Song> getFavoriteSongs() {
+        List<Song> list = new ArrayList<>();
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor c = db.rawQuery("SELECT * FROM songs WHERE is_favorite = 1 ORDER BY id DESC", null);
+        if (c != null && c.moveToFirst()) {
+            do {
+                list.add(new Song(c.getLong(0), c.getString(1), c.getString(2), c.getString(3), c.getLong(4), c.getString(5), c.getInt(6) == 1));
             } while (c.moveToNext());
             c.close();
         }
@@ -68,7 +82,16 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         v.put("artist", song.getArtist());
         v.put("path", song.getPath());
         v.put("image_path", song.getImagePath());
+        v.put("is_favorite", song.isFavorite() ? 1 : 0);
         db.update("songs", v, "id = ?", new String[]{String.valueOf(song.getId())});
+        db.close();
+    }
+
+    public void setFavorite(long songId, boolean isFavorite) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        ContentValues v = new ContentValues();
+        v.put("is_favorite", isFavorite ? 1 : 0);
+        db.update("songs", v, "id = ?", new String[]{String.valueOf(songId)});
         db.close();
     }
 
@@ -118,7 +141,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         Cursor c = db.rawQuery(q, new String[]{String.valueOf(albId)});
         if (c != null && c.moveToFirst()) {
             do {
-                list.add(new Song(c.getLong(0), c.getString(1), c.getString(2), c.getString(3), c.getLong(4), c.getString(5)));
+                list.add(new Song(c.getLong(0), c.getString(1), c.getString(2), c.getString(3), c.getLong(4), c.getString(5), c.getInt(6) == 1));
             } while (c.moveToNext());
             c.close();
         }

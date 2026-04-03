@@ -58,9 +58,19 @@
         </LinearLayout>
 
         <ImageButton
+            android:id="@+id/btn_favorite_item"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:background="@android:color/transparent"
+            android:contentDescription="Favorite"
+            android:src="@drawable/ic_favorite_border"
+            app:tint="#888888" />
+
+        <ImageButton
             android:id="@+id/btn_play_item"
             android:layout_width="32dp"
             android:layout_height="32dp"
+            android:layout_marginStart="8dp"
             android:background="@android:color/transparent"
             android:scaleType="fitCenter"
             android:contentDescription="Play"

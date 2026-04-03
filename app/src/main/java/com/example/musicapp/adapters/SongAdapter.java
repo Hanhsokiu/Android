@@ -60,8 +60,28 @@ public class SongAdapter extends RecyclerView.Adapter<SongAdapter.SongViewHolder
             holder.imgSong.setImageResource(R.drawable.ic_music_note);
         }
 
+        // Cập nhật icon trái tim
+        if (song.isFavorite()) {
+            holder.btnFavorite.setImageResource(R.drawable.ic_favorite);
+            holder.btnFavorite.setColorFilter(holder.itemView.getContext().getResources().getColor(android.R.color.holo_red_light));
+        } else {
+            holder.btnFavorite.setImageResource(R.drawable.ic_favorite_border);
+            holder.btnFavorite.setColorFilter(holder.itemView.getContext().getResources().getColor(android.R.color.darker_gray));
+        }
+
         holder.itemView.setOnClickListener(v -> listener.onSongClick(song));
         holder.btnPlay.setOnClickListener(v -> listener.onSongPlayClick(song));
+        
+        holder.btnFavorite.setOnClickListener(v -> {
+            boolean newState = !song.isFavorite();
+            song.setFavorite(newState);
+            DatabaseHelper dbHelper = new DatabaseHelper(v.getContext());
+            dbHelper.setFavorite(song.getId(), newState);
+            notifyItemChanged(position);
+            String msg = newState ? "Đã thêm vào yêu thích ❤️" : "Đã xóa khỏi yêu thích";
+            Toast.makeText(v.getContext(), msg, Toast.LENGTH_SHORT).show();
+        });
+
         holder.btnMore.setOnClickListener(v -> showPopupMenu(v, song, holder.getAdapterPosition()));
     }
 
@@ -89,7 +109,7 @@ public class SongAdapter extends RecyclerView.Adapter<SongAdapter.SongViewHolder
         DatabaseHelper dbHelper = new DatabaseHelper(context);
         List<Album> albums = dbHelper.getAllAlbums();
         if (albums.isEmpty()) {
-            Toast.makeText(context, "Chưa có album nào. Hãy tạo album trước!", Toast.LENGTH_SHORT).show();
+            Toast.makeText(context, "Chưa có album nào!", Toast.LENGTH_SHORT).show();
             return;
         }
 
@@ -137,7 +157,7 @@ public class SongAdapter extends RecyclerView.Adapter<SongAdapter.SongViewHolder
     static class SongViewHolder extends RecyclerView.ViewHolder {
         TextView title, artist;
         ImageView imgSong;
-        ImageButton btnPlay, btnMore;
+        ImageButton btnPlay, btnMore, btnFavorite;
         public SongViewHolder(@NonNull View itemView) {
             super(itemView);
             title = itemView.findViewById(R.id.txt_song_title);
@@ -145,6 +165,7 @@ public class SongAdapter extends RecyclerView.Adapter<SongAdapter.SongViewHolder
             imgSong = itemView.findViewById(R.id.img_song_item);
             btnPlay = itemView.findViewById(R.id.btn_play_item);
             btnMore = itemView.findViewById(R.id.btn_more_options);
+            btnFavorite = itemView.findViewById(R.id.btn_favorite_item);
         }
     }
 }

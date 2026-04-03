@@ -24,6 +24,7 @@ import com.example.musicapp.adapters.SongAdapter;
 import com.example.musicapp.database.DatabaseHelper;
 import com.example.musicapp.models.Song;
 import com.example.musicapp.services.MusicService;
+import com.example.musicapp.utils.NavigationUtils;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.navigation.NavigationView;
 import java.util.ArrayList;
@@ -33,7 +34,6 @@ public class MainActivity extends AppCompatActivity implements SongAdapter.OnSon
 
     private static final int REQUEST_ADD_SONG = 1;
     private static final int REQUEST_EDIT_SONG = 2;
-    private static final int REQUEST_ADD_ALBUM = 3;
 
     private RecyclerView recyclerView;
     private TextView txtNoMusic;
@@ -77,6 +77,7 @@ public class MainActivity extends AppCompatActivity implements SongAdapter.OnSon
 
         setupRecyclerView();
         setupListeners();
+        NavigationUtils.setupBottomNavigation(this);
 
         Intent intent = new Intent(this, MusicService.class);
         bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE);
@@ -137,8 +138,7 @@ public class MainActivity extends AppCompatActivity implements SongAdapter.OnSon
         navigationView.setNavigationItemSelectedListener(item -> {
             int id = item.getItemId();
             if (id == R.id.nav_create_album) {
-                Intent intent = new Intent(MainActivity.this, AddAlbumActivity.class);
-                startActivityForResult(intent, REQUEST_ADD_ALBUM);
+                startActivity(new Intent(MainActivity.this, AddAlbumActivity.class));
             } else if (id == R.id.nav_albums) {
                 startActivity(new Intent(MainActivity.this, AlbumActivity.class));
             }
@@ -208,25 +208,7 @@ public class MainActivity extends AppCompatActivity implements SongAdapter.OnSon
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         if (resultCode == RESULT_OK) {
-            if (requestCode == REQUEST_ADD_SONG || requestCode == REQUEST_EDIT_SONG) {
-                if (data != null) {
-                    Song resultSong = (Song) data.getSerializableExtra("song");
-                    if (requestCode == REQUEST_ADD_SONG) {
-                        long id = dbHelper.addSong(resultSong);
-                        songList.add(new Song(id, resultSong.getTitle(), resultSong.getArtist(), resultSong.getPath(), resultSong.getDuration(), resultSong.getImagePath()));
-                    } else {
-                        dbHelper.updateSong(resultSong);
-                        for (int i = 0; i < songList.size(); i++) {
-                            if (songList.get(i).getId() == resultSong.getId()) {
-                                songList.set(i, resultSong);
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-            // Nếu vừa tạo album xong, không cần làm gì thêm ở đây ngoài updateUI (nếu cần)
-            loadSongsFromDb(); // Đảm bảo dữ liệu mới nhất
+            loadSongsFromDb();
             updateUI();
         }
     }

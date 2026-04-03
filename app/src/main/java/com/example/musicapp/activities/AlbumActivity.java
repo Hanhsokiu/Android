@@ -9,6 +9,7 @@ import com.example.musicapp.R;
 import com.example.musicapp.adapters.AlbumAdapter;
 import com.example.musicapp.database.DatabaseHelper;
 import com.example.musicapp.models.Album;
+import com.example.musicapp.utils.NavigationUtils;
 import java.util.List;
 
 public class AlbumActivity extends AppCompatActivity implements AlbumAdapter.OnAlbumClickListener {
@@ -32,6 +33,9 @@ public class AlbumActivity extends AppCompatActivity implements AlbumAdapter.OnA
         recyclerView.setAdapter(albumAdapter);
 
         findViewById(R.id.btn_back_album).setOnClickListener(v -> finish());
+
+        // Setup common bottom navigation
+        NavigationUtils.setupBottomNavigation(this);
     }
 
     @Override

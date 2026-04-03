@@ -50,6 +50,11 @@
             android:name=".activities.AlbumDetailActivity"
             android:exported="false"
             android:label="Chi tiết Album" />
+
+        <activity
+            android:name=".activities.FavoriteActivity"
+            android:exported="false"
+            android:label="Bài Hát Yêu Thích" />
             
         <service
             android:name=".services.MusicService"
