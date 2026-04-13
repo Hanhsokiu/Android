@@ -1,5 +1,7 @@
 package com.example.musicapp.activities;
 
+import android.animation.ObjectAnimator;
+import android.animation.ValueAnimator;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
@@ -9,6 +11,7 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
+import android.view.animation.LinearInterpolator;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.SeekBar;
@@ -35,6 +38,9 @@ public class PlayerActivity extends AppCompatActivity implements MusicService.Mu
     private boolean isBound = false;
     private Handler handler = new Handler();
     private boolean isRepeatMode = false;
+    
+    // Animation xoay ảnh
+    private ObjectAnimator rotateAnimator;
 
     private ServiceConnection serviceConnection = new ServiceConnection() {
         @Override
@@ -45,6 +51,7 @@ public class PlayerActivity extends AppCompatActivity implements MusicService.Mu
             isBound = true;
             updateUI();
             updateSeekBar();
+            handleAnimation();
         }
         @Override
         public void onServiceDisconnected(ComponentName name) {
@@ -58,6 +65,7 @@ public class PlayerActivity extends AppCompatActivity implements MusicService.Mu
         setContentView(R.layout.activity_player);
 
         initViews();
+        setupAnimation();
         setupListeners();
 
         Intent intent = new Intent(this, MusicService.class);
@@ -81,27 +89,41 @@ public class PlayerActivity extends AppCompatActivity implements MusicService.Mu
         btnRestart = findViewById(R.id.btn_restart);
     }
 
+    private void setupAnimation() {
+        rotateAnimator = ObjectAnimator.ofFloat(imgAlbum, "rotation", 0f, 360f);
+        rotateAnimator.setDuration(10000); // 10 giây 1 vòng
+        rotateAnimator.setRepeatCount(ValueAnimator.INFINITE);
+        rotateAnimator.setInterpolator(new LinearInterpolator());
+    }
+
+    private void handleAnimation() {
+        if (musicService != null && musicService.isPlaying()) {
+            if (rotateAnimator.isPaused()) rotateAnimator.resume();
+            else if (!rotateAnimator.isRunning()) rotateAnimator.start();
+        } else {
+            rotateAnimator.pause();
+        }
+    }
+
     private void setupListeners() {
         btnBackHome.setOnClickListener(v -> finish());
 
         btnPlayPause.setOnClickListener(v -> {
             if (isBound) {
                 musicService.pausePlayer();
-                updatePlayPauseIcon();
+                // Giao diện sẽ được cập nhật thông qua callback onPlayStatusChanged
             }
         });
 
         btnNext.setOnClickListener(v -> {
             if (isBound) {
                 musicService.nextSong();
-                updateUI();
             }
         });
 
         btnPrev.setOnClickListener(v -> {
             if (isBound) {
                 musicService.prevSong();
-                updateUI();
             }
         });
 
@@ -167,10 +189,10 @@ public class PlayerActivity extends AppCompatActivity implements MusicService.Mu
         }
         String[] names = new String[albums.size()];
         for (int i = 0; i < albums.size(); i++) names[i] = albums.get(i).getName();
-        new AlertDialog.Builder(this).setTitle("Thêm vào Album của bạn")
+        new AlertDialog.Builder(this).setTitle("Thêm vào Album")
             .setItems(names, (d, which) -> {
                 dbHelper.addSongToAlbum(albums.get(which).getId(), songId);
-                Toast.makeText(this, "Đã thêm vào " + albums.get(which).getName(), Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Đã thêm!", Toast.LENGTH_SHORT).show();
             }).show();
     }
 
@@ -197,7 +219,19 @@ public class PlayerActivity extends AppCompatActivity implements MusicService.Mu
 
     @Override
     public void onSongChanged(Song newSong) {
-        runOnUiThread(this::updateUI);
+        runOnUiThread(() -> {
+            updateUI();
+            rotateAnimator.end();
+            rotateAnimator.start();
+        });
+    }
+
+    @Override
+    public void onPlayStatusChanged(boolean isPlaying) {
+        runOnUiThread(() -> {
+            updatePlayPauseIcon();
+            handleAnimation();
+        });
     }
 
     private void updateFavoriteIcon(boolean isFav) {
@@ -206,7 +240,9 @@ public class PlayerActivity extends AppCompatActivity implements MusicService.Mu
     }
 
     private void updatePlayPauseIcon() {
-        btnPlayPause.setImageResource(musicService.isPlaying() ? R.drawable.ic_pause : R.drawable.ic_play);
+        if (musicService != null) {
+            btnPlayPause.setImageResource(musicService.isPlaying() ? R.drawable.ic_pause : R.drawable.ic_play);
+        }
     }
 
     private void updateSeekBar() {
@@ -217,7 +253,6 @@ public class PlayerActivity extends AppCompatActivity implements MusicService.Mu
                     int pos = musicService.getCurrentPosition();
                     seekBar.setProgress(pos);
                     txtCurrentTime.setText(MusicUtils.formatDuration(pos));
-                    // Logic repeat
                     if (isRepeatMode && pos >= musicService.getDuration() - 500 && pos > 0) {
                         musicService.seekTo(0);
                     }
@@ -235,5 +270,6 @@ public class PlayerActivity extends AppCompatActivity implements MusicService.Mu
             unbindService(serviceConnection);
         }
         handler.removeCallbacksAndMessages(null);
+        if (rotateAnimator != null) rotateAnimator.cancel();
     }
 }

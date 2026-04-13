@@ -29,9 +29,13 @@ public class MusicService extends Service {
     private static final String CHANNEL_ID = "MusicChannel";
     private static final int NOTIFICATION_ID = 1;
 
-    // Interface để thông báo khi bài hát thay đổi
+    public static final String ACTION_PAUSE = "action_pause";
+    public static final String ACTION_NEXT = "action_next";
+    public static final String ACTION_PREV = "action_prev";
+
     public interface MusicServiceListener {
         void onSongChanged(Song newSong);
+        void onPlayStatusChanged(boolean isPlaying);
     }
 
     private MusicServiceListener listener;
@@ -58,6 +62,24 @@ public class MusicService extends Service {
         );
         mediaPlayer.setOnCompletionListener(mp -> nextSong());
         createNotificationChannel();
+    }
+
+    @Override
+    public int onStartCommand(Intent intent, int flags, int startId) {
+        if (intent != null && intent.getAction() != null) {
+            switch (intent.getAction()) {
+                case ACTION_PAUSE:
+                    pausePlayer();
+                    break;
+                case ACTION_NEXT:
+                    nextSong();
+                    break;
+                case ACTION_PREV:
+                    prevSong();
+                    break;
+            }
+        }
+        return START_NOT_STICKY;
     }
 
     @Nullable
@@ -88,14 +110,8 @@ public class MusicService extends Service {
             mediaPlayer.prepare();
             mediaPlayer.start();
             showNotification(playSong.getTitle(), playSong.getArtist(), true);
-            
-            // Thông báo cho Activity cập nhật UI
-            if (listener != null) {
-                listener.onSongChanged(playSong);
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+            if (listener != null) listener.onSongChanged(playSong);
+        } catch (Exception e) { e.printStackTrace(); }
     }
 
     public void pausePlayer() {
@@ -107,6 +123,7 @@ public class MusicService extends Service {
                 mediaPlayer.start();
                 showNotification(getCurrentSong().getTitle(), getCurrentSong().getArtist(), true);
             }
+            if (listener != null) listener.onPlayStatusChanged(mediaPlayer.isPlaying());
         } catch (Exception e) { e.printStackTrace(); }
     }
 
@@ -123,27 +140,19 @@ public class MusicService extends Service {
     }
 
     public boolean isPlaying() {
-        try {
-            return mediaPlayer != null && mediaPlayer.isPlaying();
-        } catch (Exception e) { return false; }
+        return mediaPlayer != null && mediaPlayer.isPlaying();
     }
 
     public int getDuration() {
-        try {
-            return (mediaPlayer != null) ? mediaPlayer.getDuration() : 0;
-        } catch (Exception e) { return 0; }
+        return (mediaPlayer != null) ? mediaPlayer.getDuration() : 0;
     }
 
     public int getCurrentPosition() {
-        try {
-            return (mediaPlayer != null) ? mediaPlayer.getCurrentPosition() : 0;
-        } catch (Exception e) { return 0; }
+        return (mediaPlayer != null) ? mediaPlayer.getCurrentPosition() : 0;
     }
 
     public void seekTo(int pos) {
-        try {
-            if (mediaPlayer != null) mediaPlayer.seekTo(pos);
-        } catch (Exception e) { e.printStackTrace(); }
+        if (mediaPlayer != null) mediaPlayer.seekTo(pos);
     }
 
     private void createNotificationChannel() {
@@ -162,11 +171,28 @@ public class MusicService extends Service {
         PendingIntent pendingIntent = PendingIntent.getActivity(this, 0,
                 notificationIntent, PendingIntent.FLAG_IMMUTABLE);
 
+        // Nút Prev
+        Intent prevIntent = new Intent(this, MusicService.class).setAction(ACTION_PREV);
+        PendingIntent prevPending = PendingIntent.getService(this, 0, prevIntent, PendingIntent.FLAG_IMMUTABLE);
+
+        // Nút Play/Pause
+        Intent pauseIntent = new Intent(this, MusicService.class).setAction(ACTION_PAUSE);
+        PendingIntent pausePending = PendingIntent.getService(this, 1, pauseIntent, PendingIntent.FLAG_IMMUTABLE);
+
+        // Nút Next
+        Intent nextIntent = new Intent(this, MusicService.class).setAction(ACTION_NEXT);
+        PendingIntent nextPending = PendingIntent.getService(this, 2, nextIntent, PendingIntent.FLAG_IMMUTABLE);
+
         Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_music_note)
                 .setContentTitle(title)
                 .setContentText(artist)
                 .setContentIntent(pendingIntent)
+                .addAction(R.drawable.ic_prev, "Prev", prevPending)
+                .addAction(isPlaying ? R.drawable.ic_pause : R.drawable.ic_play, isPlaying ? "Pause" : "Play", pausePending)
+                .addAction(R.drawable.ic_next, "Next", nextPending)
+                .setStyle(new androidx.media.app.NotificationCompat.MediaStyle()
+                        .setShowActionsInCompactView(0, 1, 2))
                 .setPriority(NotificationCompat.PRIORITY_LOW)
                 .setSilent(true)
                 .build();

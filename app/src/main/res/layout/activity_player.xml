@@ -30,15 +30,14 @@
         app:layout_constraintTop_toTopOf="parent"
         android:layout_marginTop="8dp"/>
 
-    <!-- Album Art -->
+    <!-- Album Art - Changed to Circular -->
     <androidx.cardview.widget.CardView
         android:id="@+id/card_album"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:layout_marginTop="40dp"
-        app:cardCornerRadius="20dp"
-        app:cardElevation="10dp"
-        app:layout_constraintDimensionRatio="1:1"
+        android:layout_width="280dp"
+        android:layout_height="280dp"
+        android:layout_marginTop="60dp"
+        app:cardCornerRadius="140dp"
+        app:cardElevation="15dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/view_drag_handle">
