@@ -8,6 +8,7 @@ import android.os.Bundle;
 import android.os.IBinder;
 import android.widget.ImageButton;
 import android.widget.TextView;
+import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -48,7 +49,6 @@ public class AlbumDetailActivity extends AppCompatActivity implements SongAdapte
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_album_detail);
 
-        // Nhận dữ liệu Album an toàn
         Intent intentData = getIntent();
         if (intentData != null && intentData.hasExtra("album")) {
             album = (Album) intentData.getSerializableExtra("album");
@@ -63,7 +63,7 @@ public class AlbumDetailActivity extends AppCompatActivity implements SongAdapte
         txtTitle.setText(album.getName());
 
         dbHelper = new DatabaseHelper(this);
-        songList = dbHelper.getSongsInAlbum(album.getId());
+        loadSongs();
 
         recyclerView = findViewById(R.id.rv_album_songs);
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
@@ -77,6 +77,10 @@ public class AlbumDetailActivity extends AppCompatActivity implements SongAdapte
 
         Intent intent = new Intent(this, MusicService.class);
         bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE);
+    }
+
+    private void loadSongs() {
+        songList = dbHelper.getSongsInAlbum(album.getId());
     }
 
     @Override
@@ -104,12 +108,21 @@ public class AlbumDetailActivity extends AppCompatActivity implements SongAdapte
 
     @Override
     public void onSongEdit(Song song, int position) {
-        // Chức năng sửa trong Album nếu cần
+        // Có thể mở màn hình sửa nếu cần
     }
 
     @Override
     public void onSongDelete(Song song, int position) {
-        // Chức năng xóa khỏi Album nếu cần
+        // Đây là chức năng XÓA KHỎI ALBUM (không xóa bài hát khỏi máy/database tổng)
+        dbHelper.removeSongFromAlbum(album.getId(), song.getId());
+        songList.remove(position);
+        songAdapter.notifyItemRemoved(position);
+        Toast.makeText(this, "Đã xóa khỏi album", Toast.LENGTH_SHORT).show();
+        
+        // Cập nhật lại list cho service nếu đang phát trong album này
+        if (isBound && musicService != null) {
+            musicService.setSongList(new ArrayList<>(songList));
+        }
     }
 
     @Override

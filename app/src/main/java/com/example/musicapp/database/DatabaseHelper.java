@@ -134,6 +134,13 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         db.close();
     }
 
+    public void removeSongFromAlbum(long albId, long songId) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        db.delete("album_songs", "as_album_id = ? AND as_song_id = ?", 
+                  new String[]{String.valueOf(albId), String.valueOf(songId)});
+        db.close();
+    }
+
     public List<Song> getSongsInAlbum(long albId) {
         List<Song> list = new ArrayList<>();
         SQLiteDatabase db = this.getReadableDatabase();
