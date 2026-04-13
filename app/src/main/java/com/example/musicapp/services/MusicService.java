@@ -29,6 +29,17 @@ public class MusicService extends Service {
     private static final String CHANNEL_ID = "MusicChannel";
     private static final int NOTIFICATION_ID = 1;
 
+    // Interface để thông báo khi bài hát thay đổi
+    public interface MusicServiceListener {
+        void onSongChanged(Song newSong);
+    }
+
+    private MusicServiceListener listener;
+
+    public void setListener(MusicServiceListener listener) {
+        this.listener = listener;
+    }
+
     public class MusicBinder extends Binder {
         public MusicService getService() {
             return MusicService.this;
@@ -77,6 +88,11 @@ public class MusicService extends Service {
             mediaPlayer.prepare();
             mediaPlayer.start();
             showNotification(playSong.getTitle(), playSong.getArtist(), true);
+            
+            // Thông báo cho Activity cập nhật UI
+            if (listener != null) {
+                listener.onSongChanged(playSong);
+            }
         } catch (Exception e) {
             e.printStackTrace();
         }

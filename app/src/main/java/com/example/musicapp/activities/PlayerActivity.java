@@ -23,7 +23,7 @@ import com.example.musicapp.services.MusicService;
 import com.example.musicapp.utils.MusicUtils;
 import java.util.List;
 
-public class PlayerActivity extends AppCompatActivity {
+public class PlayerActivity extends AppCompatActivity implements MusicService.MusicServiceListener {
 
     private ImageView imgAlbum;
     private TextView txtSongName, txtArtistName, txtCurrentTime, txtTotalTime;
@@ -40,6 +40,7 @@ public class PlayerActivity extends AppCompatActivity {
         public void onServiceConnected(ComponentName name, IBinder service) {
             MusicService.MusicBinder binder = (MusicService.MusicBinder) service;
             musicService = binder.getService();
+            musicService.setListener(PlayerActivity.this);
             isBound = true;
             updateUI();
             updateSeekBar();
@@ -184,6 +185,11 @@ public class PlayerActivity extends AppCompatActivity {
         }
     }
 
+    @Override
+    public void onSongChanged(Song newSong) {
+        runOnUiThread(this::updateUI);
+    }
+
     private void updateFavoriteIcon(boolean isFav) {
         btnFavorite.setImageResource(isFav ? R.drawable.ic_favorite : R.drawable.ic_favorite_border);
         btnFavorite.setColorFilter(isFav ? getResources().getColor(android.R.color.holo_red_light) : getResources().getColor(android.R.color.white));
@@ -214,7 +220,10 @@ public class PlayerActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        if (isBound) unbindService(serviceConnection);
+        if (isBound) {
+            musicService.setListener(null);
+            unbindService(serviceConnection);
+        }
         handler.removeCallbacksAndMessages(null);
     }
 }
