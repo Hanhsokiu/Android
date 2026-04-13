@@ -4,6 +4,7 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
@@ -150,17 +151,26 @@ public class PlayerActivity extends AppCompatActivity implements MusicService.Mu
 
     private void showAlbumSelectionDialog(long songId) {
         DatabaseHelper dbHelper = new DatabaseHelper(this);
-        List<Album> albums = dbHelper.getAllAlbums();
+        SharedPreferences pref = getSharedPreferences("UserPrefs", MODE_PRIVATE);
+        String username = pref.getString("username", "");
+        long userId = dbHelper.getUserId(username);
+
+        if (userId == -1) {
+            Toast.makeText(this, "Lỗi xác thực người dùng!", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        List<Album> albums = dbHelper.getAllAlbums(userId);
         if (albums.isEmpty()) {
-            Toast.makeText(this, "Chưa có album nào!", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Bạn chưa có album nào! Hãy tạo album trước.", Toast.LENGTH_SHORT).show();
             return;
         }
         String[] names = new String[albums.size()];
         for (int i = 0; i < albums.size(); i++) names[i] = albums.get(i).getName();
-        new AlertDialog.Builder(this).setTitle("Thêm vào Album")
+        new AlertDialog.Builder(this).setTitle("Thêm vào Album của bạn")
             .setItems(names, (d, which) -> {
                 dbHelper.addSongToAlbum(albums.get(which).getId(), songId);
-                Toast.makeText(this, "Đã thêm!", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Đã thêm vào " + albums.get(which).getName(), Toast.LENGTH_SHORT).show();
             }).show();
     }
 

@@ -13,7 +13,7 @@ import java.util.List;
 public class DatabaseHelper extends SQLiteOpenHelper {
 
     private static final String DATABASE_NAME = "MusicManagerFinal.db";
-    private static final int DATABASE_VERSION = 2; // Increment version
+    private static final int DATABASE_VERSION = 4; // Tăng version để thêm cột user_id vào albums
 
     public DatabaseHelper(Context context) {
         super(context, DATABASE_NAME, null, DATABASE_VERSION);
@@ -22,15 +22,56 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     @Override
     public void onCreate(SQLiteDatabase db) {
         db.execSQL("CREATE TABLE songs (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, artist TEXT, path TEXT, duration INTEGER, image_path TEXT, is_favorite INTEGER DEFAULT 0)");
-        db.execSQL("CREATE TABLE albums (album_id INTEGER PRIMARY KEY AUTOINCREMENT, album_name TEXT)");
+        db.execSQL("CREATE TABLE albums (album_id INTEGER PRIMARY KEY AUTOINCREMENT, album_name TEXT, user_id INTEGER)");
         db.execSQL("CREATE TABLE album_songs (as_album_id INTEGER, as_song_id INTEGER, PRIMARY KEY (as_album_id, as_song_id))");
+        db.execSQL("CREATE TABLE users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE, password TEXT, role TEXT)");
+        
+        ContentValues admin = new ContentValues();
+        admin.put("username", "admin");
+        admin.put("password", "admin123");
+        admin.put("role", "ADMIN");
+        db.insert("users", null, admin);
     }
 
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
-        if (oldVersion < 2) {
-            db.execSQL("ALTER TABLE songs ADD COLUMN is_favorite INTEGER DEFAULT 0");
+        if (oldVersion < 4) {
+            try {
+                db.execSQL("ALTER TABLE albums ADD COLUMN user_id INTEGER");
+            } catch (Exception e) {}
         }
+    }
+
+    public long getUserId(String username) {
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor c = db.rawQuery("SELECT id FROM users WHERE username=?", new String[]{username});
+        long id = -1;
+        if (c != null && c.moveToFirst()) {
+            id = c.getLong(0);
+            c.close();
+        }
+        return id;
+    }
+
+    public boolean registerUser(String username, String password, String role) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        ContentValues v = new ContentValues();
+        v.put("username", username);
+        v.put("password", password);
+        v.put("role", role);
+        long res = db.insert("users", null, v);
+        return res != -1;
+    }
+
+    public String checkLogin(String username, String password) {
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor c = db.rawQuery("SELECT role FROM users WHERE username=? AND password=?", new String[]{username, password});
+        if (c != null && c.moveToFirst()) {
+            String role = c.getString(0);
+            c.close();
+            return role;
+        }
+        return null;
     }
 
     public long addSong(Song song) {
@@ -75,26 +116,6 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         return list;
     }
 
-    public void updateSong(Song song) {
-        SQLiteDatabase db = this.getWritableDatabase();
-        ContentValues v = new ContentValues();
-        v.put("title", song.getTitle());
-        v.put("artist", song.getArtist());
-        v.put("path", song.getPath());
-        v.put("image_path", song.getImagePath());
-        v.put("is_favorite", song.isFavorite() ? 1 : 0);
-        db.update("songs", v, "id = ?", new String[]{String.valueOf(song.getId())});
-        db.close();
-    }
-
-    public void setFavorite(long songId, boolean isFavorite) {
-        SQLiteDatabase db = this.getWritableDatabase();
-        ContentValues v = new ContentValues();
-        v.put("is_favorite", isFavorite ? 1 : 0);
-        db.update("songs", v, "id = ?", new String[]{String.valueOf(songId)});
-        db.close();
-    }
-
     public void deleteSong(long id) {
         SQLiteDatabase db = this.getWritableDatabase();
         db.delete("songs", "id = ?", new String[]{String.valueOf(id)});
@@ -102,19 +123,22 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         db.close();
     }
 
-    public long addAlbum(String name) {
+    // --- Quản lý Album theo User ---
+    public long addAlbum(String name, long userId) {
         SQLiteDatabase db = this.getWritableDatabase();
         ContentValues v = new ContentValues();
         v.put("album_name", name);
+        v.put("user_id", userId);
         long id = db.insert("albums", null, v);
         db.close();
         return id;
     }
 
-    public List<Album> getAllAlbums() {
+    public List<Album> getAllAlbums(long userId) {
         List<Album> list = new ArrayList<>();
         SQLiteDatabase db = this.getReadableDatabase();
-        Cursor c = db.rawQuery("SELECT * FROM albums", null);
+        // Chỉ lấy album của user hiện tại
+        Cursor c = db.rawQuery("SELECT * FROM albums WHERE user_id = ?", new String[]{String.valueOf(userId)});
         if (c != null && c.moveToFirst()) {
             do {
                 list.add(new Album(c.getLong(0), c.getString(1)));
@@ -154,5 +178,13 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         }
         db.close();
         return list;
+    }
+    
+    public void setFavorite(long songId, boolean isFavorite) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        ContentValues v = new ContentValues();
+        v.put("is_favorite", isFavorite ? 1 : 0);
+        db.update("songs", v, "id = ?", new String[]{String.valueOf(songId)});
+        db.close();
     }
 }

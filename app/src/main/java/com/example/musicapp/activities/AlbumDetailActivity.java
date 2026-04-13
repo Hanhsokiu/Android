@@ -67,7 +67,10 @@ public class AlbumDetailActivity extends AppCompatActivity implements SongAdapte
 
         recyclerView = findViewById(R.id.rv_album_songs);
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
-        songAdapter = new SongAdapter(songList, this);
+        
+        // QUAN TRỌNG: Truyền tham số false để SongAdapter biết đây KHÔNG PHẢI là MainList
+        // Từ đó hiển thị menu "Xóa khỏi danh sách này" cho cả Admin và User
+        songAdapter = new SongAdapter(songList, this, false);
         recyclerView.setAdapter(songAdapter);
 
         ImageButton btnBack = findViewById(R.id.btn_back_detail);
@@ -108,18 +111,17 @@ public class AlbumDetailActivity extends AppCompatActivity implements SongAdapte
 
     @Override
     public void onSongEdit(Song song, int position) {
-        // Có thể mở màn hình sửa nếu cần
+        // Chức năng sửa trong Album nếu cần
     }
 
     @Override
     public void onSongDelete(Song song, int position) {
-        // Đây là chức năng XÓA KHỎI ALBUM (không xóa bài hát khỏi máy/database tổng)
+        // XÓA LIÊN KẾT BÀI HÁT KHỎI ALBUM
         dbHelper.removeSongFromAlbum(album.getId(), song.getId());
         songList.remove(position);
-        songAdapter.notifyItemRemoved(position);
+        songAdapter.updateList(new ArrayList<>(songList));
         Toast.makeText(this, "Đã xóa khỏi album", Toast.LENGTH_SHORT).show();
         
-        // Cập nhật lại list cho service nếu đang phát trong album này
         if (isBound && musicService != null) {
             musicService.setSongList(new ArrayList<>(songList));
         }

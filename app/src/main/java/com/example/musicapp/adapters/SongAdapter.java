@@ -1,6 +1,7 @@
 package com.example.musicapp.adapters;
 
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.net.Uri;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -23,6 +24,8 @@ public class SongAdapter extends RecyclerView.Adapter<SongAdapter.SongViewHolder
     private List<Song> songList;
     private List<Song> songListFull;
     private OnSongActionListener listener;
+    private String userRole;
+    private boolean isMainList = true; 
 
     public interface OnSongActionListener {
         void onSongClick(Song song);
@@ -35,6 +38,16 @@ public class SongAdapter extends RecyclerView.Adapter<SongAdapter.SongViewHolder
         this.songList = songList;
         this.songListFull = new ArrayList<>(songList);
         this.listener = listener;
+        
+        if (listener instanceof Context) {
+            SharedPreferences pref = ((Context) listener).getSharedPreferences("UserPrefs", Context.MODE_PRIVATE);
+            this.userRole = pref.getString("role", "USER");
+        }
+    }
+
+    public SongAdapter(List<Song> songList, OnSongActionListener listener, boolean isMainList) {
+        this(songList, listener);
+        this.isMainList = isMainList;
     }
 
     @NonNull
@@ -60,7 +73,6 @@ public class SongAdapter extends RecyclerView.Adapter<SongAdapter.SongViewHolder
             holder.imgSong.setImageResource(R.drawable.ic_music_note);
         }
 
-        // Cập nhật icon trái tim
         if (song.isFavorite()) {
             holder.btnFavorite.setImageResource(R.drawable.ic_favorite);
             holder.btnFavorite.setColorFilter(holder.itemView.getContext().getResources().getColor(android.R.color.holo_red_light));
@@ -78,8 +90,7 @@ public class SongAdapter extends RecyclerView.Adapter<SongAdapter.SongViewHolder
             DatabaseHelper dbHelper = new DatabaseHelper(v.getContext());
             dbHelper.setFavorite(song.getId(), newState);
             notifyItemChanged(position);
-            String msg = newState ? "Đã thêm vào yêu thích ❤️" : "Đã xóa khỏi yêu thích";
-            Toast.makeText(v.getContext(), msg, Toast.LENGTH_SHORT).show();
+            Toast.makeText(v.getContext(), newState ? "Đã thích ❤️" : "Bỏ thích", Toast.LENGTH_SHORT).show();
         });
 
         holder.btnMore.setOnClickListener(v -> showPopupMenu(v, song, holder.getAdapterPosition()));
@@ -87,9 +98,20 @@ public class SongAdapter extends RecyclerView.Adapter<SongAdapter.SongViewHolder
 
     private void showPopupMenu(View view, Song song, int position) {
         android.widget.PopupMenu popup = new android.widget.PopupMenu(view.getContext(), view);
+        
         popup.getMenu().add("Thêm vào Album");
-        popup.getMenu().add("Sửa");
-        popup.getMenu().add("Xóa");
+        
+        if (isMainList) {
+            // ĐANG Ở MÀN HÌNH CHÍNH
+            if ("ADMIN".equals(userRole)) {
+                popup.getMenu().add("Sửa");
+                popup.getMenu().add("Xóa"); // Đổi từ "Xóa hệ thống" thành "Xóa"
+            }
+            // User không thấy menu xóa ở màn hình chính
+        } else {
+            // ĐANG Ở TRONG ALBUM/LIST NHẠC -> Cả Admin và User đều thấy
+            popup.getMenu().add("Xóa khỏi danh sách này");
+        }
         
         popup.setOnMenuItemClickListener(item -> {
             String title = item.getTitle().toString();
@@ -97,7 +119,7 @@ public class SongAdapter extends RecyclerView.Adapter<SongAdapter.SongViewHolder
                 showAlbumSelectionDialog(view.getContext(), song.getId());
             } else if (title.equals("Sửa")) {
                 listener.onSongEdit(song, position);
-            } else if (title.equals("Xóa")) {
+            } else if (title.equals("Xóa") || title.equals("Xóa khỏi danh sách này")) {
                 listener.onSongDelete(song, position);
             }
             return true;
@@ -107,46 +129,26 @@ public class SongAdapter extends RecyclerView.Adapter<SongAdapter.SongViewHolder
 
     private void showAlbumSelectionDialog(Context context, long songId) {
         DatabaseHelper dbHelper = new DatabaseHelper(context);
-        List<Album> albums = dbHelper.getAllAlbums();
+        SharedPreferences pref = context.getSharedPreferences("UserPrefs", Context.MODE_PRIVATE);
+        String username = pref.getString("username", "");
+        long userId = dbHelper.getUserId(username);
+        
+        List<Album> albums = dbHelper.getAllAlbums(userId);
         if (albums.isEmpty()) {
-            Toast.makeText(context, "Chưa có album nào!", Toast.LENGTH_SHORT).show();
+            Toast.makeText(context, "Bạn chưa có album nào!", Toast.LENGTH_SHORT).show();
             return;
         }
-
         String[] albumNames = new String[albums.size()];
-        for (int i = 0; i < albums.size(); i++) {
-            albumNames[i] = albums.get(i).getName();
-        }
-
-        new AlertDialog.Builder(context)
-            .setTitle("Chọn Album")
+        for (int i = 0; i < albums.size(); i++) albumNames[i] = albums.get(i).getName();
+        new AlertDialog.Builder(context).setTitle("Chọn Album")
             .setItems(albumNames, (dialog, which) -> {
                 dbHelper.addSongToAlbum(albums.get(which).getId(), songId);
-                Toast.makeText(context, "Đã thêm vào album", Toast.LENGTH_SHORT).show();
-            })
-            .show();
+                Toast.makeText(context, "Đã thêm!", Toast.LENGTH_SHORT).show();
+            }).show();
     }
 
     @Override
-    public int getItemCount() {
-        return songList.size();
-    }
-
-    public void filter(String text) {
-        songList.clear();
-        if (text.isEmpty()) {
-            songList.addAll(songListFull);
-        } else {
-            text = text.toLowerCase();
-            for (Song song : songListFull) {
-                if (song.getTitle().toLowerCase().contains(text) || 
-                    song.getArtist().toLowerCase().contains(text)) {
-                    songList.add(song);
-                }
-            }
-        }
-        notifyDataSetChanged();
-    }
+    public int getItemCount() { return songList.size(); }
 
     public void updateList(List<Song> newList) {
         this.songList = new ArrayList<>(newList);

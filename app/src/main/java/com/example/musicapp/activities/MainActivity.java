@@ -4,6 +4,7 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.text.Editable;
@@ -32,23 +33,19 @@ import java.util.List;
 
 public class MainActivity extends AppCompatActivity implements SongAdapter.OnSongActionListener {
 
-    private static final int REQUEST_ADD_SONG = 1;
-    private static final int REQUEST_EDIT_SONG = 2;
-
     private RecyclerView recyclerView;
     private TextView txtNoMusic;
     private FloatingActionButton fabAdd;
     private SongAdapter songAdapter;
     private List<Song> songList = new ArrayList<>();
-    
     private DrawerLayout drawerLayout;
     private ImageButton btnMenu, btnSearch;
     private EditText etSearch;
     private NavigationView navigationView;
-
     private MusicService musicService;
     private boolean isBound = false;
     private DatabaseHelper dbHelper;
+    private String userRole;
 
     private ServiceConnection serviceConnection = new ServiceConnection() {
         @Override
@@ -69,6 +66,15 @@ public class MainActivity extends AppCompatActivity implements SongAdapter.OnSon
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        
+        SharedPreferences pref = getSharedPreferences("UserPrefs", MODE_PRIVATE);
+        userRole = pref.getString("role", null);
+        if (userRole == null) {
+            startActivity(new Intent(this, LoginActivity.class));
+            finish();
+            return;
+        }
+
         setContentView(R.layout.activity_main);
 
         initViews();
@@ -78,6 +84,10 @@ public class MainActivity extends AppCompatActivity implements SongAdapter.OnSon
         setupRecyclerView();
         setupListeners();
         NavigationUtils.setupBottomNavigation(this);
+
+        if ("USER".equals(userRole)) {
+            fabAdd.setVisibility(View.GONE);
+        }
 
         Intent intent = new Intent(this, MusicService.class);
         bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE);
@@ -95,6 +105,13 @@ public class MainActivity extends AppCompatActivity implements SongAdapter.OnSon
         btnSearch = findViewById(R.id.btn_search);
         etSearch = findViewById(R.id.et_search);
         navigationView = findViewById(R.id.nav_view);
+        
+        View headerView = navigationView.getHeaderView(0);
+        TextView txtUser = headerView.findViewById(R.id.txt_user_name_nav);
+        if (txtUser != null) {
+            SharedPreferences pref = getSharedPreferences("UserPrefs", MODE_PRIVATE);
+            txtUser.setText("Chào, " + pref.getString("username", "User") + " (" + userRole + ")");
+        }
     }
 
     private void loadSongsFromDb() {
@@ -103,7 +120,8 @@ public class MainActivity extends AppCompatActivity implements SongAdapter.OnSon
 
     private void setupRecyclerView() {
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
-        songAdapter = new SongAdapter(new ArrayList<>(songList), this);
+        // ĐÁNH DẤU LÀ DANH SÁCH CHÍNH (isMainList = true)
+        songAdapter = new SongAdapter(new ArrayList<>(songList), this, true);
         recyclerView.setAdapter(songAdapter);
     }
 
@@ -124,7 +142,7 @@ public class MainActivity extends AppCompatActivity implements SongAdapter.OnSon
             public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
             @Override
             public void onTextChanged(CharSequence s, int start, int before, int count) {
-                if (songAdapter != null) songAdapter.filter(s.toString());
+                if (songAdapter != null) songAdapter.updateList(filter(s.toString()));
             }
             @Override
             public void afterTextChanged(Editable s) {}
@@ -132,12 +150,14 @@ public class MainActivity extends AppCompatActivity implements SongAdapter.OnSon
 
         fabAdd.setOnClickListener(v -> {
             Intent intent = new Intent(MainActivity.this, AddEditSongActivity.class);
-            startActivityForResult(intent, REQUEST_ADD_SONG);
+            startActivityForResult(intent, 1);
         });
 
         navigationView.setNavigationItemSelectedListener(item -> {
             int id = item.getItemId();
-            if (id == R.id.nav_create_album) {
+            if (id == R.id.nav_logout) {
+                logout();
+            } else if (id == R.id.nav_create_album) {
                 startActivity(new Intent(MainActivity.this, AddAlbumActivity.class));
             } else if (id == R.id.nav_albums) {
                 startActivity(new Intent(MainActivity.this, AlbumActivity.class));
@@ -145,6 +165,25 @@ public class MainActivity extends AppCompatActivity implements SongAdapter.OnSon
             drawerLayout.closeDrawer(GravityCompat.START);
             return true;
         });
+    }
+
+    private List<Song> filter(String text) {
+        if (text.isEmpty()) return new ArrayList<>(songList);
+        List<Song> filteredList = new ArrayList<>();
+        for (Song s : songList) {
+            if (s.getTitle().toLowerCase().contains(text.toLowerCase()) || 
+                s.getArtist().toLowerCase().contains(text.toLowerCase())) {
+                filteredList.add(s);
+            }
+        }
+        return filteredList;
+    }
+
+    private void logout() {
+        SharedPreferences pref = getSharedPreferences("UserPrefs", MODE_PRIVATE);
+        pref.edit().clear().apply();
+        startActivity(new Intent(this, LoginActivity.class));
+        finish();
     }
 
     private void updateUI() {
@@ -162,7 +201,7 @@ public class MainActivity extends AppCompatActivity implements SongAdapter.OnSon
 
     @Override
     public void onSongClick(Song song) {
-        openPlayer();
+        startActivity(new Intent(this, PlayerActivity.class));
     }
 
     @Override
@@ -178,26 +217,29 @@ public class MainActivity extends AppCompatActivity implements SongAdapter.OnSon
             if (index != -1) {
                 musicService.setSongList(new ArrayList<>(songList));
                 musicService.playSong(index);
-                openPlayer();
+                startActivity(new Intent(this, PlayerActivity.class));
             }
         }
     }
 
-    private void openPlayer() {
-        Intent intent = new Intent(this, PlayerActivity.class);
-        startActivity(intent);
-    }
-
     @Override
     public void onSongEdit(Song song, int position) {
+        if (!"ADMIN".equals(userRole)) {
+            Toast.makeText(this, "Chỉ Admin mới có quyền sửa nhạc hệ thống!", Toast.LENGTH_SHORT).show();
+            return;
+        }
         Intent intent = new Intent(this, AddEditSongActivity.class);
         intent.putExtra("song", song);
         intent.putExtra("index", position);
-        startActivityForResult(intent, REQUEST_EDIT_SONG);
+        startActivityForResult(intent, 2);
     }
 
     @Override
     public void onSongDelete(Song song, int position) {
+        if (!"ADMIN".equals(userRole)) {
+            Toast.makeText(this, "Chỉ Admin mới có quyền xóa nhạc khỏi hệ thống!", Toast.LENGTH_SHORT).show();
+            return;
+        }
         dbHelper.deleteSong(song.getId());
         songList.removeIf(s -> s.getId() == song.getId());
         if (isBound && musicService != null) musicService.setSongList(new ArrayList<>(songList));
