@@ -6,6 +6,7 @@ import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.ServiceInfo;
 import android.media.AudioAttributes;
 import android.media.MediaPlayer;
@@ -16,6 +17,7 @@ import androidx.annotation.Nullable;
 import androidx.core.app.NotificationCompat;
 import com.example.musicapp.R;
 import com.example.musicapp.activities.PlayerActivity;
+import com.example.musicapp.database.DatabaseHelper;
 import com.example.musicapp.models.Song;
 import java.io.IOException;
 import java.util.List;
@@ -110,8 +112,22 @@ public class MusicService extends Service {
             mediaPlayer.prepare();
             mediaPlayer.start();
             showNotification(playSong.getTitle(), playSong.getArtist(), true);
+            
+            // LƯU VÀO LỊCH SỬ GẦN ĐÂY
+            saveToRecent(playSong.getId());
+
             if (listener != null) listener.onSongChanged(playSong);
         } catch (Exception e) { e.printStackTrace(); }
+    }
+
+    private void saveToRecent(long songId) {
+        SharedPreferences pref = getSharedPreferences("UserPrefs", MODE_PRIVATE);
+        String username = pref.getString("username", "");
+        DatabaseHelper db = new DatabaseHelper(this);
+        long userId = db.getUserId(username);
+        if (userId != -1) {
+            db.addRecentSong(userId, songId);
+        }
     }
 
     public void pausePlayer() {
@@ -125,6 +141,15 @@ public class MusicService extends Service {
             }
             if (listener != null) listener.onPlayStatusChanged(mediaPlayer.isPlaying());
         } catch (Exception e) { e.printStackTrace(); }
+    }
+
+    public void stopMusic() {
+        if (mediaPlayer != null) {
+            if (mediaPlayer.isPlaying()) mediaPlayer.stop();
+            mediaPlayer.reset();
+        }
+        stopForeground(true);
+        stopSelf();
     }
 
     public void nextSong() {
@@ -171,15 +196,12 @@ public class MusicService extends Service {
         PendingIntent pendingIntent = PendingIntent.getActivity(this, 0,
                 notificationIntent, PendingIntent.FLAG_IMMUTABLE);
 
-        // Nút Prev
         Intent prevIntent = new Intent(this, MusicService.class).setAction(ACTION_PREV);
         PendingIntent prevPending = PendingIntent.getService(this, 0, prevIntent, PendingIntent.FLAG_IMMUTABLE);
 
-        // Nút Play/Pause
         Intent pauseIntent = new Intent(this, MusicService.class).setAction(ACTION_PAUSE);
         PendingIntent pausePending = PendingIntent.getService(this, 1, pauseIntent, PendingIntent.FLAG_IMMUTABLE);
 
-        // Nút Next
         Intent nextIntent = new Intent(this, MusicService.class).setAction(ACTION_NEXT);
         PendingIntent nextPending = PendingIntent.getService(this, 2, nextIntent, PendingIntent.FLAG_IMMUTABLE);
 

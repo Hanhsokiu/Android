@@ -17,7 +17,6 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.MusicApp">
         
-        <!-- Màn hình khởi đầu là Login -->
         <activity
             android:name=".activities.LoginActivity"
             android:exported="true">
@@ -65,6 +64,12 @@
             android:name=".activities.FavoriteActivity"
             android:exported="false"
             android:label="Bài Hát Yêu Thích" />
+
+        <!-- KHAI BÁO RECENT ACTIVITY TẠI ĐÂY -->
+        <activity
+            android:name=".activities.RecentActivity"
+            android:exported="false"
+            android:label="Phát Gần Đây" />
             
         <service
             android:name=".services.MusicService"

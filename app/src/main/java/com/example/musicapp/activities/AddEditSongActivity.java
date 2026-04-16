@@ -13,6 +13,7 @@ import android.widget.Toast;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import com.example.musicapp.R;
+import com.example.musicapp.database.DatabaseHelper;
 import com.example.musicapp.models.Song;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -30,12 +31,14 @@ public class AddEditSongActivity extends AppCompatActivity {
     private int songIndex = -1;
     private String selectedMusicPath = "";
     private String selectedImagePath = "";
+    private DatabaseHelper dbHelper;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_add_edit_song);
 
+        dbHelper = new DatabaseHelper(this);
         initViews();
 
         Intent intent = getIntent();
@@ -85,13 +88,19 @@ public class AddEditSongActivity extends AppCompatActivity {
             return;
         }
 
-        long id = (currentSongId != -1) ? currentSongId : System.currentTimeMillis();
-        Song song = new Song(id, title, artist, selectedMusicPath, 0, selectedImagePath);
+        if (currentSongId != -1) {
+            // Cập nhật bài hát cũ
+            Song song = new Song(currentSongId, title, artist, selectedMusicPath, 0, selectedImagePath);
+            dbHelper.updateSong(song);
+            Toast.makeText(this, "Đã cập nhật bài hát!", Toast.LENGTH_SHORT).show();
+        } else {
+            // Thêm bài hát mới vào Database
+            Song newSong = new Song(0, title, artist, selectedMusicPath, 0, selectedImagePath);
+            dbHelper.addSong(newSong);
+            Toast.makeText(this, "Đã thêm bài hát mới!", Toast.LENGTH_SHORT).show();
+        }
         
-        Intent resultIntent = new Intent();
-        resultIntent.putExtra("song", song);
-        resultIntent.putExtra("index", songIndex);
-        setResult(RESULT_OK, resultIntent);
+        setResult(RESULT_OK);
         finish();
     }
 

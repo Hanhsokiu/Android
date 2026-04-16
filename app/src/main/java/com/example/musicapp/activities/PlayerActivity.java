@@ -38,6 +38,7 @@ public class PlayerActivity extends AppCompatActivity implements MusicService.Mu
     private boolean isBound = false;
     private Handler handler = new Handler();
     private boolean isRepeatMode = false;
+    private DatabaseHelper dbHelper;
     
     // Animation xoay ảnh
     private ObjectAnimator rotateAnimator;
@@ -64,6 +65,7 @@ public class PlayerActivity extends AppCompatActivity implements MusicService.Mu
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_player);
 
+        dbHelper = new DatabaseHelper(this);
         initViews();
         setupAnimation();
         setupListeners();
@@ -111,20 +113,15 @@ public class PlayerActivity extends AppCompatActivity implements MusicService.Mu
         btnPlayPause.setOnClickListener(v -> {
             if (isBound) {
                 musicService.pausePlayer();
-                // Giao diện sẽ được cập nhật thông qua callback onPlayStatusChanged
             }
         });
 
         btnNext.setOnClickListener(v -> {
-            if (isBound) {
-                musicService.nextSong();
-            }
+            if (isBound) musicService.nextSong();
         });
 
         btnPrev.setOnClickListener(v -> {
-            if (isBound) {
-                musicService.prevSong();
-            }
+            if (isBound) musicService.prevSong();
         });
 
         btnRepeat.setOnClickListener(v -> {
@@ -134,18 +131,20 @@ public class PlayerActivity extends AppCompatActivity implements MusicService.Mu
         });
 
         btnRestart.setOnClickListener(v -> {
-            if (isBound) {
-                musicService.seekTo(0);
-            }
+            if (isBound) musicService.seekTo(0);
         });
 
         btnFavorite.setOnClickListener(v -> {
             if (isBound) {
                 Song song = musicService.getCurrentSong();
                 if (song != null) {
-                    boolean newState = !song.isFavorite();
-                    song.setFavorite(newState);
-                    new DatabaseHelper(this).setFavorite(song.getId(), newState);
+                    SharedPreferences pref = getSharedPreferences("UserPrefs", MODE_PRIVATE);
+                    long userId = dbHelper.getUserId(pref.getString("username", ""));
+                    
+                    boolean currentFav = dbHelper.isFavorite(userId, song.getId());
+                    boolean newState = !currentFav;
+                    
+                    dbHelper.setFavorite(userId, song.getId(), newState);
                     updateFavoriteIcon(newState);
                     Toast.makeText(this, newState ? "Đã thích ❤️" : "Bỏ thích", Toast.LENGTH_SHORT).show();
                 }
@@ -172,10 +171,8 @@ public class PlayerActivity extends AppCompatActivity implements MusicService.Mu
     }
 
     private void showAlbumSelectionDialog(long songId) {
-        DatabaseHelper dbHelper = new DatabaseHelper(this);
         SharedPreferences pref = getSharedPreferences("UserPrefs", MODE_PRIVATE);
-        String username = pref.getString("username", "");
-        long userId = dbHelper.getUserId(username);
+        long userId = dbHelper.getUserId(pref.getString("username", ""));
 
         if (userId == -1) {
             Toast.makeText(this, "Lỗi xác thực người dùng!", Toast.LENGTH_SHORT).show();
@@ -184,7 +181,7 @@ public class PlayerActivity extends AppCompatActivity implements MusicService.Mu
 
         List<Album> albums = dbHelper.getAllAlbums(userId);
         if (albums.isEmpty()) {
-            Toast.makeText(this, "Bạn chưa có album nào! Hãy tạo album trước.", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Bạn chưa có album nào!", Toast.LENGTH_SHORT).show();
             return;
         }
         String[] names = new String[albums.size()];
@@ -202,7 +199,12 @@ public class PlayerActivity extends AppCompatActivity implements MusicService.Mu
         if (song != null) {
             txtSongName.setText(song.getTitle());
             txtArtistName.setText(song.getArtist());
-            updateFavoriteIcon(song.isFavorite());
+            
+            // Cập nhật icon favorite dựa trên database của user
+            SharedPreferences pref = getSharedPreferences("UserPrefs", MODE_PRIVATE);
+            long userId = dbHelper.getUserId(pref.getString("username", ""));
+            updateFavoriteIcon(dbHelper.isFavorite(userId, song.getId()));
+
             try {
                 if (song.getImagePath() != null && !song.getImagePath().isEmpty()) {
                     imgAlbum.setImageURI(Uri.parse(song.getImagePath()));
@@ -210,6 +212,7 @@ public class PlayerActivity extends AppCompatActivity implements MusicService.Mu
                     imgAlbum.setImageResource(R.drawable.ic_music_note);
                 }
             } catch (Exception e) { imgAlbum.setImageResource(R.drawable.ic_music_note); }
+            
             int dur = musicService.getDuration();
             txtTotalTime.setText(MusicUtils.formatDuration(dur));
             seekBar.setMax(dur);

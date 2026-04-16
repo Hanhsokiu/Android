@@ -5,6 +5,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.content.SharedPreferences;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.text.Editable;
@@ -12,6 +13,7 @@ import android.text.TextWatcher;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.ImageButton;
+import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.annotation.Nullable;
@@ -31,7 +33,7 @@ import com.google.android.material.navigation.NavigationView;
 import java.util.ArrayList;
 import java.util.List;
 
-public class MainActivity extends AppCompatActivity implements SongAdapter.OnSongActionListener {
+public class MainActivity extends AppCompatActivity implements SongAdapter.OnSongActionListener, MusicService.MusicServiceListener {
 
     private RecyclerView recyclerView;
     private TextView txtNoMusic;
@@ -47,15 +49,20 @@ public class MainActivity extends AppCompatActivity implements SongAdapter.OnSon
     private DatabaseHelper dbHelper;
     private String userRole;
 
+    // Mini Player Views
+    private View miniPlayerContainer;
+    private ImageView imgMiniAlbum;
+    private TextView txtMiniSongName, txtMiniArtistName;
+    private ImageButton btnMiniPlayPause, btnMiniNext, btnMiniPrev;
+
     private ServiceConnection serviceConnection = new ServiceConnection() {
         @Override
         public void onServiceConnected(ComponentName name, IBinder service) {
             MusicService.MusicBinder binder = (MusicService.MusicBinder) service;
             musicService = binder.getService();
-            if (musicService != null && songList != null) {
-                musicService.setSongList(new ArrayList<>(songList));
-            }
+            musicService.setListener(MainActivity.this);
             isBound = true;
+            updateMiniPlayer();
         }
         @Override
         public void onServiceDisconnected(ComponentName name) {
@@ -77,8 +84,8 @@ public class MainActivity extends AppCompatActivity implements SongAdapter.OnSon
 
         setContentView(R.layout.activity_main);
 
-        initViews();
         dbHelper = new DatabaseHelper(this);
+        initViews();
         loadSongsFromDb();
 
         setupRecyclerView();
@@ -105,24 +112,24 @@ public class MainActivity extends AppCompatActivity implements SongAdapter.OnSon
         btnSearch = findViewById(R.id.btn_search);
         etSearch = findViewById(R.id.et_search);
         navigationView = findViewById(R.id.nav_view);
+
+        // Mini Player
+        miniPlayerContainer = findViewById(R.id.mini_player_container);
+        imgMiniAlbum = findViewById(R.id.img_mini_album);
+        txtMiniSongName = findViewById(R.id.txt_mini_song_name);
+        txtMiniArtistName = findViewById(R.id.txt_mini_artist_name);
+        btnMiniPlayPause = findViewById(R.id.btn_mini_play_pause);
+        btnMiniPrev = findViewById(R.id.btn_mini_prev);
+        btnMiniNext = findViewById(R.id.btn_mini_next);
         
         View headerView = navigationView.getHeaderView(0);
-        TextView txtUser = headerView.findViewById(R.id.txt_user_name_nav);
-        if (txtUser != null) {
-            SharedPreferences pref = getSharedPreferences("UserPrefs", MODE_PRIVATE);
-            txtUser.setText("Chào, " + pref.getString("username", "User") + " (" + userRole + ")");
+        if (headerView != null) {
+            TextView txtUser = headerView.findViewById(R.id.txt_user_name_nav);
+            if (txtUser != null) {
+                SharedPreferences pref = getSharedPreferences("UserPrefs", MODE_PRIVATE);
+                txtUser.setText("Chào, " + pref.getString("username", "User") + " (" + userRole + ")");
+            }
         }
-    }
-
-    private void loadSongsFromDb() {
-        songList = dbHelper.getAllSongs();
-    }
-
-    private void setupRecyclerView() {
-        recyclerView.setLayoutManager(new LinearLayoutManager(this));
-        // ĐÁNH DẤU LÀ DANH SÁCH CHÍNH (isMainList = true)
-        songAdapter = new SongAdapter(new ArrayList<>(songList), this, true);
-        recyclerView.setAdapter(songAdapter);
     }
 
     private void setupListeners() {
@@ -157,6 +164,8 @@ public class MainActivity extends AppCompatActivity implements SongAdapter.OnSon
             int id = item.getItemId();
             if (id == R.id.nav_logout) {
                 logout();
+            } else if (id == R.id.nav_recent) {
+                startActivity(new Intent(MainActivity.this, RecentActivity.class));
             } else if (id == R.id.nav_create_album) {
                 startActivity(new Intent(MainActivity.this, AddAlbumActivity.class));
             } else if (id == R.id.nav_albums) {
@@ -165,6 +174,86 @@ public class MainActivity extends AppCompatActivity implements SongAdapter.OnSon
             drawerLayout.closeDrawer(GravityCompat.START);
             return true;
         });
+
+        if (miniPlayerContainer != null) {
+            miniPlayerContainer.setOnClickListener(v -> {
+                startActivity(new Intent(MainActivity.this, PlayerActivity.class));
+            });
+        }
+
+        if (btnMiniPlayPause != null) {
+            btnMiniPlayPause.setOnClickListener(v -> {
+                if (isBound && musicService != null) {
+                    musicService.pausePlayer();
+                    updateMiniPlayer(); // Cập nhật icon ngay lập tức
+                }
+            });
+        }
+
+        if (btnMiniPrev != null) {
+            btnMiniPrev.setOnClickListener(v -> {
+                if (isBound && musicService != null) {
+                    musicService.prevSong();
+                    // updateMiniPlayer sẽ được gọi tự động qua onSongChanged
+                }
+            });
+        }
+
+        if (btnMiniNext != null) {
+            btnMiniNext.setOnClickListener(v -> {
+                if (isBound && musicService != null) {
+                    musicService.nextSong();
+                    // updateMiniPlayer sẽ được gọi tự động qua onSongChanged
+                }
+            });
+        }
+    }
+
+    private void updateMiniPlayer() {
+        if (!isBound || musicService == null) return;
+        
+        Song currentSong = musicService.getCurrentSong();
+        if (currentSong != null) {
+            miniPlayerContainer.setVisibility(View.VISIBLE);
+            txtMiniSongName.setText(currentSong.getTitle());
+            txtMiniArtistName.setText(currentSong.getArtist());
+            
+            try {
+                if (currentSong.getImagePath() != null && !currentSong.getImagePath().isEmpty()) {
+                    imgMiniAlbum.setImageURI(Uri.parse(currentSong.getImagePath()));
+                } else {
+                    imgMiniAlbum.setImageResource(R.drawable.ic_music_note);
+                }
+            } catch (Exception e) {
+                imgMiniAlbum.setImageResource(R.drawable.ic_music_note);
+            }
+            
+            btnMiniPlayPause.setImageResource(musicService.isPlaying() ? R.drawable.ic_pause : R.drawable.ic_play);
+        } else {
+            miniPlayerContainer.setVisibility(View.GONE);
+        }
+    }
+
+    @Override
+    public void onSongChanged(Song newSong) {
+        // Khi Service báo bài hát đã đổi, cập nhật Mini Player ngay lập tức trên UI Thread
+        runOnUiThread(this::updateMiniPlayer);
+    }
+
+    @Override
+    public void onPlayStatusChanged(boolean isPlaying) {
+        // Khi Service báo trạng thái Play/Pause thay đổi
+        runOnUiThread(this::updateMiniPlayer);
+    }
+
+    private void loadSongsFromDb() {
+        songList = dbHelper.getAllSongs();
+    }
+
+    private void setupRecyclerView() {
+        recyclerView.setLayoutManager(new LinearLayoutManager(this));
+        songAdapter = new SongAdapter(new ArrayList<>(songList), this, true);
+        recyclerView.setAdapter(songAdapter);
     }
 
     private List<Song> filter(String text) {
@@ -180,6 +269,9 @@ public class MainActivity extends AppCompatActivity implements SongAdapter.OnSon
     }
 
     private void logout() {
+        if (isBound && musicService != null) {
+            musicService.stopMusic();
+        }
         SharedPreferences pref = getSharedPreferences("UserPrefs", MODE_PRIVATE);
         pref.edit().clear().apply();
         startActivity(new Intent(this, LoginActivity.class));
@@ -188,10 +280,10 @@ public class MainActivity extends AppCompatActivity implements SongAdapter.OnSon
 
     private void updateUI() {
         if (songList.isEmpty()) {
-            txtNoMusic.setVisibility(View.VISIBLE);
+            if (txtNoMusic != null) txtNoMusic.setVisibility(View.VISIBLE);
             recyclerView.setVisibility(View.GONE);
         } else {
-            txtNoMusic.setVisibility(View.GONE);
+            if (txtNoMusic != null) txtNoMusic.setVisibility(View.GONE);
             recyclerView.setVisibility(View.VISIBLE);
         }
         if (songAdapter != null) {
@@ -217,17 +309,14 @@ public class MainActivity extends AppCompatActivity implements SongAdapter.OnSon
             if (index != -1) {
                 musicService.setSongList(new ArrayList<>(songList));
                 musicService.playSong(index);
-                startActivity(new Intent(this, PlayerActivity.class));
+                // updateMiniPlayer() sẽ được gọi qua onSongChanged
             }
         }
     }
 
     @Override
     public void onSongEdit(Song song, int position) {
-        if (!"ADMIN".equals(userRole)) {
-            Toast.makeText(this, "Chỉ Admin mới có quyền sửa nhạc hệ thống!", Toast.LENGTH_SHORT).show();
-            return;
-        }
+        if (!"ADMIN".equals(userRole)) return;
         Intent intent = new Intent(this, AddEditSongActivity.class);
         intent.putExtra("song", song);
         intent.putExtra("index", position);
@@ -236,10 +325,7 @@ public class MainActivity extends AppCompatActivity implements SongAdapter.OnSon
 
     @Override
     public void onSongDelete(Song song, int position) {
-        if (!"ADMIN".equals(userRole)) {
-            Toast.makeText(this, "Chỉ Admin mới có quyền xóa nhạc khỏi hệ thống!", Toast.LENGTH_SHORT).show();
-            return;
-        }
+        if (!"ADMIN".equals(userRole)) return;
         dbHelper.deleteSong(song.getId());
         songList.removeIf(s -> s.getId() == song.getId());
         if (isBound && musicService != null) musicService.setSongList(new ArrayList<>(songList));
@@ -253,6 +339,12 @@ public class MainActivity extends AppCompatActivity implements SongAdapter.OnSon
             loadSongsFromDb();
             updateUI();
         }
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        updateMiniPlayer();
     }
 
     @Override

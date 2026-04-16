@@ -73,7 +73,13 @@ public class SongAdapter extends RecyclerView.Adapter<SongAdapter.SongViewHolder
             holder.imgSong.setImageResource(R.drawable.ic_music_note);
         }
 
-        if (song.isFavorite()) {
+        // Kiểm tra xem bài hát này có nằm trong danh sách yêu thích của User không
+        DatabaseHelper dbHelper = new DatabaseHelper(holder.itemView.getContext());
+        SharedPreferences pref = holder.itemView.getContext().getSharedPreferences("UserPrefs", Context.MODE_PRIVATE);
+        long userId = dbHelper.getUserId(pref.getString("username", ""));
+        boolean isFav = dbHelper.isFavorite(userId, song.getId());
+
+        if (isFav) {
             holder.btnFavorite.setImageResource(R.drawable.ic_favorite);
             holder.btnFavorite.setColorFilter(holder.itemView.getContext().getResources().getColor(android.R.color.holo_red_light));
         } else {
@@ -85,10 +91,9 @@ public class SongAdapter extends RecyclerView.Adapter<SongAdapter.SongViewHolder
         holder.btnPlay.setOnClickListener(v -> listener.onSongPlayClick(song));
         
         holder.btnFavorite.setOnClickListener(v -> {
-            boolean newState = !song.isFavorite();
-            song.setFavorite(newState);
-            DatabaseHelper dbHelper = new DatabaseHelper(v.getContext());
-            dbHelper.setFavorite(song.getId(), newState);
+            boolean currentFav = dbHelper.isFavorite(userId, song.getId());
+            boolean newState = !currentFav;
+            dbHelper.setFavorite(userId, song.getId(), newState);
             notifyItemChanged(position);
             Toast.makeText(v.getContext(), newState ? "Đã thích ❤️" : "Bỏ thích", Toast.LENGTH_SHORT).show();
         });
@@ -98,18 +103,13 @@ public class SongAdapter extends RecyclerView.Adapter<SongAdapter.SongViewHolder
 
     private void showPopupMenu(View view, Song song, int position) {
         android.widget.PopupMenu popup = new android.widget.PopupMenu(view.getContext(), view);
-        
         popup.getMenu().add("Thêm vào Album");
-        
         if (isMainList) {
-            // ĐANG Ở MÀN HÌNH CHÍNH
             if ("ADMIN".equals(userRole)) {
                 popup.getMenu().add("Sửa");
-                popup.getMenu().add("Xóa"); // Đổi từ "Xóa hệ thống" thành "Xóa"
+                popup.getMenu().add("Xóa");
             }
-            // User không thấy menu xóa ở màn hình chính
         } else {
-            // ĐANG Ở TRONG ALBUM/LIST NHẠC -> Cả Admin và User đều thấy
             popup.getMenu().add("Xóa khỏi danh sách này");
         }
         
