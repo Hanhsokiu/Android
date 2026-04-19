@@ -1,13 +1,17 @@
 package com.example.musicapp.activities;
 
+import android.animation.ObjectAnimator;
+import android.animation.ValueAnimator;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
+import android.view.animation.LinearInterpolator;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.SeekBar;
@@ -34,6 +38,10 @@ public class PlayerActivity extends AppCompatActivity implements MusicService.Mu
     private boolean isBound = false;
     private Handler handler = new Handler();
     private boolean isRepeatMode = false;
+    private DatabaseHelper dbHelper;
+    
+    // Animation xoay ảnh
+    private ObjectAnimator rotateAnimator;
 
     private ServiceConnection serviceConnection = new ServiceConnection() {
         @Override
@@ -44,6 +52,7 @@ public class PlayerActivity extends AppCompatActivity implements MusicService.Mu
             isBound = true;
             updateUI();
             updateSeekBar();
+            handleAnimation();
         }
         @Override
         public void onServiceDisconnected(ComponentName name) {
@@ -56,7 +65,9 @@ public class PlayerActivity extends AppCompatActivity implements MusicService.Mu
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_player);
 
+        dbHelper = new DatabaseHelper(this);
         initViews();
+        setupAnimation();
         setupListeners();
 
         Intent intent = new Intent(this, MusicService.class);
@@ -80,28 +91,37 @@ public class PlayerActivity extends AppCompatActivity implements MusicService.Mu
         btnRestart = findViewById(R.id.btn_restart);
     }
 
+    private void setupAnimation() {
+        rotateAnimator = ObjectAnimator.ofFloat(imgAlbum, "rotation", 0f, 360f);
+        rotateAnimator.setDuration(10000); // 10 giây 1 vòng
+        rotateAnimator.setRepeatCount(ValueAnimator.INFINITE);
+        rotateAnimator.setInterpolator(new LinearInterpolator());
+    }
+
+    private void handleAnimation() {
+        if (musicService != null && musicService.isPlaying()) {
+            if (rotateAnimator.isPaused()) rotateAnimator.resume();
+            else if (!rotateAnimator.isRunning()) rotateAnimator.start();
+        } else {
+            rotateAnimator.pause();
+        }
+    }
+
     private void setupListeners() {
         btnBackHome.setOnClickListener(v -> finish());
 
         btnPlayPause.setOnClickListener(v -> {
             if (isBound) {
                 musicService.pausePlayer();
-                updatePlayPauseIcon();
             }
         });
 
         btnNext.setOnClickListener(v -> {
-            if (isBound) {
-                musicService.nextSong();
-                updateUI();
-            }
+            if (isBound) musicService.nextSong();
         });
 
         btnPrev.setOnClickListener(v -> {
-            if (isBound) {
-                musicService.prevSong();
-                updateUI();
-            }
+            if (isBound) musicService.prevSong();
         });
 
         btnRepeat.setOnClickListener(v -> {
@@ -111,18 +131,20 @@ public class PlayerActivity extends AppCompatActivity implements MusicService.Mu
         });
 
         btnRestart.setOnClickListener(v -> {
-            if (isBound) {
-                musicService.seekTo(0);
-            }
+            if (isBound) musicService.seekTo(0);
         });
 
         btnFavorite.setOnClickListener(v -> {
             if (isBound) {
                 Song song = musicService.getCurrentSong();
                 if (song != null) {
-                    boolean newState = !song.isFavorite();
-                    song.setFavorite(newState);
-                    new DatabaseHelper(this).setFavorite(song.getId(), newState);
+                    SharedPreferences pref = getSharedPreferences("UserPrefs", MODE_PRIVATE);
+                    long userId = dbHelper.getUserId(pref.getString("username", ""));
+                    
+                    boolean currentFav = dbHelper.isFavorite(userId, song.getId());
+                    boolean newState = !currentFav;
+                    
+                    dbHelper.setFavorite(userId, song.getId(), newState);
                     updateFavoriteIcon(newState);
                     Toast.makeText(this, newState ? "Đã thích ❤️" : "Bỏ thích", Toast.LENGTH_SHORT).show();
                 }
@@ -149,10 +171,17 @@ public class PlayerActivity extends AppCompatActivity implements MusicService.Mu
     }
 
     private void showAlbumSelectionDialog(long songId) {
-        DatabaseHelper dbHelper = new DatabaseHelper(this);
-        List<Album> albums = dbHelper.getAllAlbums();
+        SharedPreferences pref = getSharedPreferences("UserPrefs", MODE_PRIVATE);
+        long userId = dbHelper.getUserId(pref.getString("username", ""));
+
+        if (userId == -1) {
+            Toast.makeText(this, "Lỗi xác thực người dùng!", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        List<Album> albums = dbHelper.getAllAlbums(userId);
         if (albums.isEmpty()) {
-            Toast.makeText(this, "Chưa có album nào!", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Bạn chưa có album nào!", Toast.LENGTH_SHORT).show();
             return;
         }
         String[] names = new String[albums.size()];
@@ -170,7 +199,12 @@ public class PlayerActivity extends AppCompatActivity implements MusicService.Mu
         if (song != null) {
             txtSongName.setText(song.getTitle());
             txtArtistName.setText(song.getArtist());
-            updateFavoriteIcon(song.isFavorite());
+            
+            // Cập nhật icon favorite dựa trên database của user
+            SharedPreferences pref = getSharedPreferences("UserPrefs", MODE_PRIVATE);
+            long userId = dbHelper.getUserId(pref.getString("username", ""));
+            updateFavoriteIcon(dbHelper.isFavorite(userId, song.getId()));
+
             try {
                 if (song.getImagePath() != null && !song.getImagePath().isEmpty()) {
                     imgAlbum.setImageURI(Uri.parse(song.getImagePath()));
@@ -178,6 +212,7 @@ public class PlayerActivity extends AppCompatActivity implements MusicService.Mu
                     imgAlbum.setImageResource(R.drawable.ic_music_note);
                 }
             } catch (Exception e) { imgAlbum.setImageResource(R.drawable.ic_music_note); }
+            
             int dur = musicService.getDuration();
             txtTotalTime.setText(MusicUtils.formatDuration(dur));
             seekBar.setMax(dur);
@@ -187,7 +222,19 @@ public class PlayerActivity extends AppCompatActivity implements MusicService.Mu
 
     @Override
     public void onSongChanged(Song newSong) {
-        runOnUiThread(this::updateUI);
+        runOnUiThread(() -> {
+            updateUI();
+            rotateAnimator.end();
+            rotateAnimator.start();
+        });
+    }
+
+    @Override
+    public void onPlayStatusChanged(boolean isPlaying) {
+        runOnUiThread(() -> {
+            updatePlayPauseIcon();
+            handleAnimation();
+        });
     }
 
     private void updateFavoriteIcon(boolean isFav) {
@@ -196,7 +243,9 @@ public class PlayerActivity extends AppCompatActivity implements MusicService.Mu
     }
 
     private void updatePlayPauseIcon() {
-        btnPlayPause.setImageResource(musicService.isPlaying() ? R.drawable.ic_pause : R.drawable.ic_play);
+        if (musicService != null) {
+            btnPlayPause.setImageResource(musicService.isPlaying() ? R.drawable.ic_pause : R.drawable.ic_play);
+        }
     }
 
     private void updateSeekBar() {
@@ -207,7 +256,6 @@ public class PlayerActivity extends AppCompatActivity implements MusicService.Mu
                     int pos = musicService.getCurrentPosition();
                     seekBar.setProgress(pos);
                     txtCurrentTime.setText(MusicUtils.formatDuration(pos));
-                    // Logic repeat
                     if (isRepeatMode && pos >= musicService.getDuration() - 500 && pos > 0) {
                         musicService.seekTo(0);
                     }
@@ -225,5 +273,6 @@ public class PlayerActivity extends AppCompatActivity implements MusicService.Mu
             unbindService(serviceConnection);
         }
         handler.removeCallbacksAndMessages(null);
+        if (rotateAnimator != null) rotateAnimator.cancel();
     }
 }

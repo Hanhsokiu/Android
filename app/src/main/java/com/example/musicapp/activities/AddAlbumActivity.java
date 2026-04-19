@@ -1,8 +1,10 @@
 package com.example.musicapp.activities;
 
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageButton;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 import com.example.musicapp.R;
@@ -10,8 +12,9 @@ import com.example.musicapp.database.DatabaseHelper;
 
 public class AddAlbumActivity extends AppCompatActivity {
 
-    private EditText etName;
+    private EditText etAlbumName;
     private Button btnSave;
+    private ImageButton btnBack;
     private DatabaseHelper dbHelper;
 
     @Override
@@ -20,20 +23,32 @@ public class AddAlbumActivity extends AppCompatActivity {
         setContentView(R.layout.activity_add_album);
 
         dbHelper = new DatabaseHelper(this);
-        etName = findViewById(R.id.et_album_name);
+        etAlbumName = findViewById(R.id.et_album_name);
         btnSave = findViewById(R.id.btn_save_album);
+        btnBack = findViewById(R.id.btn_back_add_album);
+
+        if (btnBack != null) {
+            btnBack.setOnClickListener(v -> finish());
+        }
 
         btnSave.setOnClickListener(v -> {
-            String name = etName.getText().toString().trim();
+            String name = etAlbumName.getText().toString().trim();
             if (name.isEmpty()) {
-                Toast.makeText(this, "Vui lòng nhập tên Album!", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Vui lòng nhập tên album!", Toast.LENGTH_SHORT).show();
                 return;
             }
 
-            dbHelper.addAlbum(name);
-            Toast.makeText(this, "Đã tạo Album: " + name, Toast.LENGTH_SHORT).show();
-            setResult(RESULT_OK);
-            finish();
+            SharedPreferences pref = getSharedPreferences("UserPrefs", MODE_PRIVATE);
+            String username = pref.getString("username", "");
+            long userId = dbHelper.getUserId(username);
+
+            if (userId != -1) {
+                dbHelper.addAlbum(name, userId);
+                Toast.makeText(this, "Đã tạo album thành công!", Toast.LENGTH_SHORT).show();
+                finish();
+            } else {
+                Toast.makeText(this, "Lỗi xác thực người dùng!", Toast.LENGTH_SHORT).show();
+            }
         });
     }
 }

@@ -1,6 +1,5 @@
 package com.example.musicapp.activities;
 
-import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
@@ -18,23 +17,22 @@ import com.example.musicapp.models.Song;
 import com.example.musicapp.utils.NavigationUtils;
 import java.util.List;
 
-public class FavoriteActivity extends AppCompatActivity implements SongAdapter.OnSongActionListener {
+public class RecentActivity extends AppCompatActivity implements SongAdapter.OnSongActionListener {
 
     private RecyclerView recyclerView;
     private SongAdapter songAdapter;
-    private List<Song> favoriteSongs;
+    private List<Song> recentSongs;
     private DatabaseHelper dbHelper;
-    private TextView txtNoFavorites;
+    private TextView txtNoRecent;
     private long currentUserId = -1;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_favorite);
+        setContentView(R.layout.activity_recent);
 
         dbHelper = new DatabaseHelper(this);
         
-        // Lấy userId của người dùng đang đăng nhập
         SharedPreferences pref = getSharedPreferences("UserPrefs", MODE_PRIVATE);
         String username = pref.getString("username", "");
         currentUserId = dbHelper.getUserId(username);
@@ -46,32 +44,29 @@ public class FavoriteActivity extends AppCompatActivity implements SongAdapter.O
         }
 
         initViews();
-        loadFavoriteSongs();
+        loadRecentSongs();
 
-        // Thiết lập Bottom Navigation
         NavigationUtils.setupBottomNavigation(this);
     }
 
     private void initViews() {
-        recyclerView = findViewById(R.id.rv_favorite_songs);
-        txtNoFavorites = findViewById(R.id.txtNoFavorites);
+        recyclerView = findViewById(R.id.rv_recent_songs);
+        txtNoRecent = findViewById(R.id.txtNoRecent);
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
         
-        ImageButton btnBack = findViewById(R.id.btn_back_favorite);
+        ImageButton btnBack = findViewById(R.id.btn_back_recent);
         if (btnBack != null) btnBack.setOnClickListener(v -> finish());
     }
 
-    private void loadFavoriteSongs() {
-        // Truyền currentUserId để lấy đúng danh sách yêu thích của User này
-        favoriteSongs = dbHelper.getFavoriteSongs(currentUserId);
-        
-        if (favoriteSongs == null || favoriteSongs.isEmpty()) {
-            txtNoFavorites.setVisibility(View.VISIBLE);
+    private void loadRecentSongs() {
+        recentSongs = dbHelper.getRecentSongs(currentUserId);
+        if (recentSongs == null || recentSongs.isEmpty()) {
+            txtNoRecent.setVisibility(View.VISIBLE);
             recyclerView.setVisibility(View.GONE);
         } else {
-            txtNoFavorites.setVisibility(View.GONE);
+            txtNoRecent.setVisibility(View.GONE);
             recyclerView.setVisibility(View.VISIBLE);
-            songAdapter = new SongAdapter(favoriteSongs, this, true);
+            songAdapter = new SongAdapter(recentSongs, this, true);
             recyclerView.setAdapter(songAdapter);
         }
     }
@@ -83,7 +78,7 @@ public class FavoriteActivity extends AppCompatActivity implements SongAdapter.O
 
     @Override
     public void onSongPlayClick(Song song) {
-        // Có thể thêm logic phát nhạc tại đây nếu muốn phát trực tiếp từ danh sách yêu thích
+        // Logic phát nhạc có thể thêm ở đây
     }
 
     @Override
@@ -91,15 +86,12 @@ public class FavoriteActivity extends AppCompatActivity implements SongAdapter.O
 
     @Override
     public void onSongDelete(Song song, int position) {
-        // Cập nhật Database: bỏ yêu thích bài hát này cho User hiện tại
-        dbHelper.setFavorite(currentUserId, song.getId(), false);
-        Toast.makeText(this, "Đã bỏ yêu thích", Toast.LENGTH_SHORT).show();
-        loadFavoriteSongs();
+        // Có thể thêm chức năng xóa khỏi lịch sử nếu muốn
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        loadFavoriteSongs();
+        loadRecentSongs();
     }
 }

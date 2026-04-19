@@ -8,7 +8,7 @@
     android:padding="24dp"
     tools:context=".activities.PlayerActivity">
 
-    <!-- Top Bar with Home Button -->
+    <!-- Nút Home ở góc trên bên trái -->
     <ImageButton
         android:id="@+id/btn_back_home"
         android:layout_width="40dp"
@@ -20,39 +20,28 @@
         app:layout_constraintTop_toTopOf="parent"
         app:tint="#FFFFFF" />
 
-    <View
-        android:id="@+id/view_drag_handle"
-        android:layout_width="40dp"
-        android:layout_height="4dp"
-        android:background="#33FFFFFF"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        android:layout_marginTop="8dp"/>
-
-    <!-- Album Art -->
+    <!-- Ảnh bài hát hình tròn - Đã cố định vị trí bên dưới nút Home -->
     <androidx.cardview.widget.CardView
         android:id="@+id/card_album"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:layout_marginTop="40dp"
-        app:cardCornerRadius="20dp"
-        app:cardElevation="10dp"
-        app:layout_constraintDimensionRatio="1:1"
+        android:layout_width="280dp"
+        android:layout_height="280dp"
+        android:layout_marginTop="32dp"
+        app:cardCornerRadius="140dp"
+        app:cardElevation="15dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/view_drag_handle">
+        app:layout_constraintTop_toBottomOf="@id/btn_back_home">
 
         <ImageView
             android:id="@+id/img_album"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:scaleType="centerCrop"
             android:contentDescription="Album Art"
+            android:scaleType="centerCrop"
             android:src="@drawable/ic_music_note" />
     </androidx.cardview.widget.CardView>
 
-    <!-- Song Info with Heart and Add to Album -->
+    <!-- Thông tin bài hát -->
     <LinearLayout
         android:id="@+id/layout_song_info"
         android:layout_width="0dp"
@@ -108,7 +97,7 @@
             app:tint="#FFFFFF" />
     </LinearLayout>
 
-    <!-- SeekBar -->
+    <!-- Thanh tiến trình nhạc -->
     <SeekBar
         android:id="@+id/seekBar"
         android:layout_width="0dp"
@@ -144,12 +133,12 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/seekBar" />
 
-    <!-- Controls -->
+    <!-- Bộ điều khiển nhạc -->
     <LinearLayout
         android:id="@+id/layout_controls"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="24dp"
+        android:layout_marginTop="32dp"
         android:gravity="center"
         android:orientation="horizontal"
         app:layout_constraintTop_toBottomOf="@+id/txt_current_time">

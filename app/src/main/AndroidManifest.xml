@@ -18,13 +18,22 @@
         android:theme="@style/Theme.MusicApp">
         
         <activity
-            android:name=".activities.MainActivity"
+            android:name=".activities.LoginActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <activity
+            android:name=".activities.RegisterActivity"
+            android:exported="false"
+            android:label="Đăng ký tài khoản" />
+        
+        <activity
+            android:name=".activities.MainActivity"
+            android:exported="false" />
         
         <activity
             android:name=".activities.PlayerActivity"
@@ -55,6 +64,12 @@
             android:name=".activities.FavoriteActivity"
             android:exported="false"
             android:label="Bài Hát Yêu Thích" />
+
+        <!-- KHAI BÁO RECENT ACTIVITY TẠI ĐÂY -->
+        <activity
+            android:name=".activities.RecentActivity"
+            android:exported="false"
+            android:label="Phát Gần Đây" />
             
         <service
             android:name=".services.MusicService"
